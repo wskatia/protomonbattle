@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Addon Author="Katia" APIVersion="15" Name="ProtomonBattle" Description="Protomon Battle Engine">
-    <Script Name="ProtomonBattle.lua"/>
     <Script Name="animations.lua"/>
-    <Script Name="data.lua"/>
+    <Script Name="ProtomonBattle.lua"/>
 </Addon>
