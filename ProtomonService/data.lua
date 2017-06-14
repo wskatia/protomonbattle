@@ -222,13 +222,13 @@ protomonbattle_protomon = {
 			[2] = {
 				cost = 1,
 				addons = {attacks = {["fusion beam"] = true}},
-				description = "fusion beam (20, takes 2 turns)",
+				description = "fusion beam (20, lose turn if no ko)",
 				descriptioncolor = "normal",
 			},
 			[3] = {
 				cost = 1,
 				addons = {hp = 70},
-				description = "+70 health",
+				description = "70 health",
 				descriptioncolor = "normal",
 			},
 			[4] = {
@@ -285,13 +285,13 @@ protomonbattle_protomon = {
 			[2] = {
 				cost = 1,
 				addons = {attacks = {["fusion beam"] = true}},
-				description = "fusion beam (20, takes 2 turns)",
+				description = "fusion beam (20, lose turn if no ko)",
 				descriptioncolor = "normal",
 			},
 			[3] = {
 				cost = 1,
 				addons = {hp = 70},
-				description = "+70 health",
+				description = "70 health",
 				descriptioncolor = "normal",
 			},
 			[4] = {
@@ -348,13 +348,13 @@ protomonbattle_protomon = {
 			[2] = {
 				cost = 1,
 				addons = {attacks = {["fusion beam"] = true}},
-				description = "fusion beam (20, takes 2 turns)",
+				description = "fusion beam (20, lose turn if no ko)",
 				descriptioncolor = "normal",
 			},
 			[3] = {
 				cost = 1,
 				addons = {hp = 70},
-				description = "+70 health",
+				description = "70 health",
 				descriptioncolor = "normal",
 			},
 			[4] = {
@@ -412,13 +412,13 @@ protomonbattle_protomon = {
 			[2] = {
 				cost = 1,
 				addons = {attacks = {["fusion beam"] = true}},
-				description = "fusion beam (20, takes 2 turns)",
+				description = "fusion beam (20, lose turn if no ko)",
 				descriptioncolor = "normal",
 			},
 			[3] = {
 				cost = 1,
 				addons = {hp = 70},
-				description = "+70 health",
+				description = "70 health",
 				descriptioncolor = "normal",
 			},
 			[4] = {
@@ -476,13 +476,13 @@ protomonbattle_protomon = {
 			[2] = {
 				cost = 1,
 				addons = {attacks = {["fusion beam"] = true}},
-				description = "fusion beam (20, takes 2 turns)",
+				description = "fusion beam (20, lose turn if no ko)",
 				descriptioncolor = "normal",
 			},
 			[3] = {
 				cost = 1,
 				addons = {hp = 70},
-				description = "+70 health",
+				description = "70 health",
 				descriptioncolor = "normal",
 			},
 			[4] = {

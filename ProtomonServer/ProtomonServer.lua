@@ -39,8 +39,11 @@ end
 function ProtomonServer:GetBattleCode(player)
 	local code = self.playercodes[player]
 	
-	-- give unregistered players an introductory team
-	if code == nil then code = "yyyyy" end
+	-- register new players
+	if code == nil then
+		self:NewPlayer(player)
+		code = self.playercodes[player]
+	end
 
 	return code
 end

@@ -33,10 +33,22 @@ function Serialization.DeserializeNumber(code)
 	return result
 end
 
+function Serialization.DeserializeVarNumber(code)
+	
+	local result = Serialization.SerializeNumber(number % 47, 1)
+	number = math.floor(number / 47)
+	while number > 0 do
+		local digit = number % 47 + 47
+		result = Serialization.SerializeNumber(digit, 1) .. result
+	end
+	return result
+end
+
 --------------------
 -- arg/return marshallers for rpcs
 --------------------
 
+-- supports values up to 94^length - 1
 function Serialization.NUMBER(length)
 	return {
 		chars = length,
@@ -46,7 +58,10 @@ function Serialization.NUMBER(length)
 		Decode = function(marshal, code, last)
 			return Serialization.DeserializeNumber(string.sub(code, 1, marshal.chars)),
 				string.sub(code, marshal.chars + 1)
-		end
+		end,
+		FixedLength = function(marshal)
+			return true
+		end,
 	}
 end
 
@@ -59,9 +74,49 @@ function Serialization.STRING(length)
 		Decode = function(marshal, code, last)
 			return string.sub(code, 1, marshal.chars),
 				string.sub(code, marshal.chars + 1)
-		end
+		end,
+		FixedLength = function(marshal)
+			return true
+		end,
 	}
 end
+
+Serialization.VARNUM = {
+	Encode = function(marshal, value, code, last)
+		if last then
+			return code .. Serialization.SerializeNumber(value, math.ceil(math.log(value + 1) / math.log(94)))
+		else
+			local result = Serialization.SerializeNumber(value % 47, 1)
+			value = math.floor(value / 47)
+			while value > 0 do
+				local digit = value % 47 + 47
+				result = Serialization.SerializeNumber(digit, 1) .. result
+			end
+			return code .. result
+		end
+	end,
+	Decode = function(marshal, code, last)
+		if last then
+			return Serialization.DeserializeNumber(code), ""
+		else
+			local result = 0
+			while true do
+				local digit = Serialization.DeserializeNumber(string.sub(code, 1, 1))
+				code = string.sub(code, 2)
+				if digit > 47 then
+					result = result * 47 + (digit - 47)
+				else
+					result = result * 47 + digit
+					break
+				end
+			end
+			return result, code
+		end
+	end,
+	FixedLength = function(marshal)
+		return false
+	end,
+}
 
 Serialization.VARSTRING = {
 	Encode = function(marshal, value, code, last)
@@ -69,17 +124,103 @@ Serialization.VARSTRING = {
 			return code .. value
 		else
 			local length = string.len(value)
-			return code .. Serialization.SerializeNumber(length, 1) .. value
+			return Serialization.VARNUM:Encode(length, code, false) .. value
 		end
 	end,
 	Decode = function(marshal, code, last)
 		if last then
 			return code, ""
 		else
-			local length = Serialization.DeserializeNumber(string.sub(code, 1, 1))
-			return string.sub(code, 2, length + 1), string.sub(code, length+2)
+			local length, code = Serialization.VARNUM:Decode(code, false)
+			return string.sub(code, 1, length), string.sub(code, length+1)
 		end
-	end
+	end,
+	FixedLength = function(marshal)
+		return false
+	end,
 }
+
+function Serialization.ARRAY(length, elementMarshal)
+	return {
+		elements = length,
+		subMarshal = elementMarshal,
+		Encode = function(marshal, value, code, last)
+			for i = 1, marshal.elements do
+				code = marshal.subMarshal:Encode(value[i], code, last and i == #marshal.elements)
+			end
+			return code
+		end,
+		Decode = function(marshal, code, last)
+			local result = {}
+			for i = 1, marshal.elements do
+				result[i], code = marshal.subMarshal:Decode(code, last and i == #marshal.elements)
+			end
+			return result, code
+		end,
+		FixedLength = function(marshal)
+			return elementMarshal:FixedLength()
+		end,
+	}
+end
+
+function Serialization.VARARRAY(elementMarshal)
+	return {
+		subMarshal = elementMarshal,
+		Encode = function(marshal, value, code, last)
+			if not last or not marshal.subMarshal:FixedLength() then
+				code = Serialization.VARNUM:Encode(#value, code, false)
+			end
+			for i = 1, #value do
+				code = marshal.subMarshal:Encode(value[i], code, false)
+			end
+			return code
+		end,
+		Decode = function(marshal, code, last)
+			local result = {}
+			if not last or not marshal.subMarshal:FixedLength() then
+				local length, code = Serialization.VARNUM:Decode(code, false)
+				for i = 1, length do
+					result[i] = marshal.subMarshal:Decode(code, false)
+				end
+			else
+				while code ~= "" do
+					element, code = marshal.subMarshal:Decode(code, false)
+					table.insert(result, element)
+				end
+			end
+			return result, code
+		end,
+		FixedLength = function(marshal)
+			return false
+		end,
+	}
+end
+
+function Serialization.TUPLE(...)
+	return {
+		subMarshals = arg,
+		Encode = function(marshal, value, code, last)
+			for i = 1, #subMarshals do
+				code = marshal.subMarshals[i]:Encode(value[i], code, last and i == #subMarshals)
+			end
+			return code
+		end,
+		Decode = function(marshal, code, last)
+			local result = {}
+			for i = 1, #subMarshals do
+				result[i], code = marshal.subMarshals[i]:Decode(code, last and i == #subMarshals)
+			end
+			return result, code
+		end,
+		FixedLength = function(marshal)
+			for i = 1, #subMarshals do
+				if not subMarshals[i]:FixedLength() then
+					return false
+				end
+			end
+			return true
+		end,
+	}
+end
 
 Apollo.RegisterPackage(Serialization, MAJOR, MINOR, {})

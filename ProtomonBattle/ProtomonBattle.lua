@@ -54,6 +54,14 @@ function ProtomonBattle:OnTest()
 	ProtomonService:RemoteCall("ProtomonServer", "GetMyCode",
 		function(x)
 			Print("I am " .. x)
+			ProtomonService:RemoteCall("ProtomonServer", "GetBattleCodes",
+				function(x,y)
+					Print(x .. " " .. y)
+				end,
+				function()
+					Print("Failed too!")
+				end,
+				"Katia Managan", "Zivala Skysong")
 		end,
 		function()
 			Print("Failed!")

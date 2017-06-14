@@ -3,6 +3,7 @@ require "ICComm"
 local S = Apollo.GetPackage("Module:Serialization-1.0").tPackage
 
 local kTimeout = 5
+local kReservedChar = string.char(31) -- used to demarcate empty messages
 
 local ProtomonService = {}
 
@@ -71,6 +72,36 @@ ProtomonService.services = {
 			},
 		},
 	},
+	["ProtomonGeoServer"] = {
+		host = "Protomon Server",
+		channelType = ICCommLib.CodeEnumICCommChannelType.Global,
+		rpcs = {
+			-- called when a player enters a new zone, instructs geo server to update his zone
+			["EnterZone"] = {
+				args = {},
+				returns = {},
+			},
+			
+			-- retry call after entering zone to get update tracker info
+			["GetZoneInfo"] = {
+				args = {},
+				returns = {
+					S.VARARRAY(S.NUMBER(1)), -- available protomon types
+					S.VARARRAY(S.ARRAY(3, S.NUMBER(2))), -- points of interest to visit (x,y,z)
+				},
+			},
+			
+			-- poll for nearby protomon
+			["RadarPulse"] = {
+				args = {},
+				returns = {
+					S.VARARRAY(S.TUPLE(
+						S.NUMBER(1), -- type, level of nearby protomon
+						S.ARRAY(3, S.NUMBER(1)))), -- loc, relative to current position (x,y,z)
+				},
+			},
+		},
+	},
 }
 
 local function pack(...)
@@ -126,6 +157,7 @@ function ProtomonService:HandleRequest(iccomm, strMessage, strSender)
 	local rpc = self.services[serviceName].rpcs[rpcName]
 	if rpc.requestHandler == nil then return end
 	
+	if strMessage == kReservedChar then strMessage = "" end
 	local args = {}
 	for i = 1, #rpc.args do
 		args[i], strMessage = rpc.args[i]:Decode(strMessage, i == #rpc.args)
@@ -137,12 +169,11 @@ function ProtomonService:HandleRequest(iccomm, strMessage, strSender)
 	for i = 1, #rpc.returns do
 		resultstring = rpc.returns[i]:Encode(results[i], resultstring, i==#rpc.returns)
 	end
-	if resultstring == "" then resultstring = "a" end -- must send at least one char
+	if resultstring == "" then resultstring = kReservedChar end -- must send at least one char
 	rpc.responseComm:SendPrivateMessage(strSender, resultstring)
 end
 
 function ProtomonService:HandleResponse(iccomm, strMessage, strSender)
-
 	local channel = iccomm:GetName()
 	local firstSeparator = string.find(channel, "_")
 	local secondSeparator = string.find(channel, "_", firstSeparator + 1)
@@ -151,6 +182,7 @@ function ProtomonService:HandleResponse(iccomm, strMessage, strSender)
 	local rpc = self.services[serviceName].rpcs[rpcName]
 	if strSender ~= self.services[serviceName].host then return end
 
+	if strMessage == kReservedChar then strMessage = "" end
 	if rpc.pendingCallHandler == nil then return end
 	local returns = {}
 	for i = 1, #rpc.returns do
@@ -167,20 +199,20 @@ function ProtomonService:Implement(serviceName, rpcName, handler)
 	rpc.requestHandler = handler
 end
 
-function ProtomonService:RemoteCall(serviceName, rpcName, responseHandler, response_failer, ...)
+function ProtomonService:RemoteCall(serviceName, rpcName, responseHandler, responseFailer, ...)
 	local service = self.services[serviceName]
 	local rpc = service.rpcs[rpcName]
 	if rpc.pendingCallHandler ~= nil then
-		response_failer()
+		responseFailer()
 		return
 	end
 	rpc.pendingCallHandler = responseHandler
-	rpc.pendingCallFailer = response_failer
+	rpc.pendingCallFailer = responseFailer
 	local argstring = ""
 	for i = 1, #rpc.args do
 		argstring = rpc.args[i]:Encode(arg[i], argstring, i==#rpc.args)
 	end
-	if argstring == "" then argstring = "a" end -- must send at least 1 char
+	if argstring == "" then argstring = kReservedChar end -- must send at least 1 char
 	rpc.requestComm:SendPrivateMessage(service.host, argstring)
 	
 	rpc.pendingTimeoutTimer = ApolloTimer.Create(kTimeout, false, "HandleTimeout", rpc)
