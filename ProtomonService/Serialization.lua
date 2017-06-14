@@ -135,14 +135,14 @@ function Serialization.ARRAY(length, elementMarshal)
 		subMarshal = elementMarshal,
 		Encode = function(marshal, value, code, last)
 			for i = 1, marshal.elements do
-				code = marshal.subMarshal:Encode(value[i], code, last and i == #marshal.elements)
+				code = marshal.subMarshal:Encode(value[i], code, last and i == marshal.elements)
 			end
 			return code
 		end,
 		Decode = function(marshal, code, last)
 			local result = {}
 			for i = 1, marshal.elements do
-				result[i], code = marshal.subMarshal:Decode(code, last and i == #marshal.elements)
+				result[i], code = marshal.subMarshal:Decode(code, last and i == marshal.elements)
 			end
 			return result, code
 		end,

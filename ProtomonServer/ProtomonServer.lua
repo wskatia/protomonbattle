@@ -49,14 +49,9 @@ function ProtomonServer:GetBattleCode(player)
 end
 
 function ProtomonServer:NewPlayer(player)
-	self.playercodes[player] = "a#aa#"
+	self.playercodes[player] = {0, 64, 0, 0, 64} -- starter team is charenok, stemasaur, squig
 	self.experience[player] = {0,0,0,0,0}
 	self.skillups[player] = {0,0,0,0,0}
-end
-
-function ProtomonServer:ChangeProtomon(player, protomon_id, newcode)
-	local code = self.playercodes[player]
-	self.playercodes[player] = string.sub(code, 1, protomon_id - 1) .. newcode .. string.sub(code, protomon_id + 1)
 end
 
 -- Protomon skill changes will favor minor adjustments of current loadout rather than complete randomization
@@ -68,21 +63,20 @@ function ProtomonServer:FindProtomon(player, protomon_id, level)
 	end
 	
 	-- get info about current protomon
-	local code = string.sub(self.playercodes[player], protomon_id, protomon_id)
+	local code = self.playercodes[player][protomon_id]
 	local bits = {}
 	local cost = 0
 	local one_sets = {}
 	local one_unsets = {}
 	local two_sets = {}
 	local two_unsets = {}
-	local value = S.DeserializeNumber(code)
-	if value >= 64 then
+	if code >= 64 then
 		-- no protomon, make a new one
-		self:ChangeProtomon(player, protomon_id, S.SerializeNumber(0,1))
+		self.playercodes[player][protomon_id] = 0
 		return 0
 	end
 	for i=1,6 do
-		bits[i] = value % 2
+		bits[i] = code % 2
 		if bits[i] == 1 then
 			if costs[i] == 1 then
 				table.insert(one_sets, i)
@@ -97,7 +91,7 @@ function ProtomonServer:FindProtomon(player, protomon_id, level)
 				table.insert(two_unsets, i)
 			end
 		end
-		value = math.floor(value / 2)
+		code = math.floor(code / 2)
 	end
 
 	local levelup = false
@@ -144,26 +138,24 @@ function ProtomonServer:FindProtomon(player, protomon_id, level)
 		self.skillups[player][protomon_id] = 0
 	end
 	
-	local newcodenumber = 0
+	local newcode = 0
 	for i=6,1,-1 do
-		newcodenumber = newcodenumber * 2 + bits[i]
+		newcode = newcode * 2 + bits[i]
 	end
-	newcode = S.SerializeNumber(newcodenumber, 1)
 	if levelup then
-		self:ChangeProtomon(player, protomon_id, newcode)
+		self.playercodes[player][protomon_id] = newcode
 	else
-		self.prospects[player] = {protomon_id, newcodenumber}
+		self.prospects[player] = {protomon_id, newcode}
 	end
-	return newcodenumber
+	return newcode
 end
 
 function ProtomonServer:AcceptProtomon(player, protomon_id)
 	if self.prospects[player] and self.prospects[player][1] == protomon_id then
-		local codenumber = self.prospects[player][2]
-		local code = S.SerializeNumber(codenumber, 1)
-		self:ChangeProtomon(player, protomon_id, code)
+		local code = self.prospects[player][2]
+		self.playercodes[player][protomon_id] = code
 		self.prospects[player] = nil
-		return codenumber
+		return code
 	else
 		return 64
 	end
@@ -240,44 +232,6 @@ end
 -- reloading ui saves all player data in case of crash
 function ProtomonServer:Persist()
 	ChatSystemLib.Command("/reloadui")
-end
-
---------------------
--- Test stuff, get rid of this later
---------------------
-
-local function Whisper(msg, to)
-	if to == GameLib.GetPlayerUnit():GetName() then
-		Print(msg)
-	else
-		local command = "/w " .. to .. " " .. msg
-		ChatSystemLib.Command(command)
-	end
-end
-
-function ProtomonServer:OnChat(chan, msg)
-	if msg.bSelf or chan:GetName() ~= "Whisper" then return end
-	if string.sub(msg.arMessageSegments[1].strText, 1, 8) == "setteam " then
-		local code = string.sub(msg.arMessageSegments[1].strText, 9)
-		if string.len(code) == 5 then
-			self.playercodes[msg.strSender] = code
-			self.experience[msg.strSender] = {0,0,0,0,0}
-			self.skillups[msg.strSender] = {0,0,0,0,0}
-			Whisper("Team set!", msg.strSender)
-		else
-			Whisper("Bad code!", msg.strSender)
-		end
-		return
-	else
-		local result = ""
-		for charname in string.gmatch(msg.arMessageSegments[1].strText, "[^,]+") do
-			local code = self.playercodes[charname]
-			if code == nil then code = "hhhhh" end
-			result = result .. code
-		end
-		Whisper(result, msg.strSender)
-	end
-
 end
 
 --------------------

@@ -18,7 +18,6 @@ function ProtomonService:Init()
 	Apollo.RegisterAddon(self, false, "", {})
 end
 
--- REMEMBER: only handles varstrings up to length 93, no current varnum implementation
 ProtomonService.services = {
 	["ProtomonServer"] = {
 		host = "Protomon Server",
@@ -31,8 +30,8 @@ ProtomonService.services = {
 					S.VARSTRING, -- name of player 2
 				},
 				returns = {
-					S.STRING(5), -- code for player 1
-					S.STRING(5), -- code for player 2
+					S.ARRAY(5, S.NUMBER(1)), -- protomon codes for player 1
+					S.ARRAY(5, S.NUMBER(1)), -- protomon codes for player 2
 				},
 			},
 
@@ -40,7 +39,7 @@ ProtomonService.services = {
 			["GetMyCode"] = {
 				args = {},
 				returns = {
-					S.STRING(5), -- code for caller
+					S.ARRAY(5, S.NUMBER(1)), -- protomon codes for player 1
 				},
 			},
 
@@ -63,7 +62,7 @@ ProtomonService.services = {
 			-- called when player wishes to accept prospective skill change
 			["AcceptProtomon"] = {
 				args = {
-					S.NUMBER(1), -- id of protomon type
+					S.NUMBER(1), -- zone-id
 				},
 				returns = {
 					S.NUMBER(1), -- code number of new protomon loadout

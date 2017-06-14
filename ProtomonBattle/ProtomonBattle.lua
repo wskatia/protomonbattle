@@ -4,7 +4,6 @@ require "ICComm"
 
 local ChatAddon
 local ProtomonService
-local S
  
 local ProtomonBattle = {} 
 
@@ -43,7 +42,6 @@ function ProtomonBattle:OnLoad()
 	self.chatConnectTimer = ApolloTimer.Create(1, false, "GetChatAddon", self)
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonserviceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
-	self.serializationConnectTimer = ApolloTimer.Create(1, true, "ConnectSerialization", self)
 end
 
 --------------------
@@ -53,15 +51,17 @@ end
 function ProtomonBattle:OnTest()
 	ProtomonService:RemoteCall("ProtomonServer", "GetMyCode",
 		function(x)
-			Print("I am " .. x)
+			Print("I am ")
+			for i = 1,5 do Print(x[i]) end
 			ProtomonService:RemoteCall("ProtomonServer", "GetBattleCodes",
 				function(x,y)
-					Print(x .. " " .. y)
+					Print("We are")
+					for i = 1,5 do Print(x[i] .. " " .. y[i]) end
 				end,
 				function()
 					Print("Failed too!")
 				end,
-				"Katia Managan", "Zivala Skysong")
+				"Katia Managan", "Katia Managan")
 		end,
 		function()
 			Print("Failed!")
@@ -108,17 +108,6 @@ function ProtomonBattle:ConnectProtomonService()
 		ProtomonService = Apollo.GetAddon("ProtomonService")
 	else
 		self.protomonserviceConnectTimer:Stop()
-	end
-end
-
-function ProtomonBattle:ConnectSerialization()
-	if not S then
-		local pack = Apollo.GetPackage("Module:Serialization-1.0")
-		if pack then
-			S = pack.tPackage
-		end
-	else
-		self.serializationConnectTimer:Stop()
 	end
 end
 
@@ -206,19 +195,18 @@ local function DecorFromIdList(label, list)
 end
 
 local function ApplyCode(protomon, code)
-	local codeNumber = S.DeserializeNumber(code)
 	local pointsSpent = 0
-	if codeNumber == nil or codeNumber >= 64 then
+	if code == nil or code >= 64 then
 		-- don't need further binary encoding because if you are missing the protomon, they have no attributes
 		protomon.absent = true
 	else
 		-- parse out 6 bits for 6 available bonuses per protomon
 		for i=1,6 do
-			if codeNumber % 2 == 1 then
+			if code % 2 == 1 then
 				OverwriteTable(protomon.bonuses[i].addons, protomon)
 				pointsSpent = pointsSpent + protomon.bonuses[i].cost
 			end
-			codeNumber = math.floor(codeNumber / 2)
+			code = math.floor(code / 2)
 		end
 	end
 	return pointsSpent
@@ -242,13 +230,15 @@ function ProtomonBattle:InitializePlayer(slot, name, code)
 		protomon = CopyTable(protomonbattle_protomon),
 	}
 	for i=1,5 do
-		ApplyCode(self.players[slot].protomon[i], string.sub(code, i, i))
+		ApplyCode(self.players[slot].protomon[i], code[i])
 	end
 	-- update player UI
+	local updateMsg = "setteam"
+	for i = 1, 5 do updateMsg = updateMsg .. " " .. code[i] end
 	table.insert(self.actionQueue, {
 		action = "private",
 		dest = slot,
-		msg = "setteam " .. code,
+		msg = updateMsg,
 		delay = 0.1,
 	})
 end

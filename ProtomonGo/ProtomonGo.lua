@@ -13,7 +13,6 @@ local elementColors = {
 }
 
 local ProtomonService
-local S
 
 --------------------
 -- Utility stuff
@@ -39,19 +38,18 @@ local function CopyTable(orig)
 end
 
 local function ApplyCode(protomon, code)
-	local codeNumber = S.DeserializeNumber(code)
 	local pointsSpent = 0
-	if codeNumber == nil or codeNumber >= 64 then
+	if code == nil or code >= 64 then
 		-- don't need further binary encoding because if you are missing the protomon, they have no attributes
 		protomon.absent = true
 	else
 		-- parse out 6 bits for 6 available bonuses per protomon
 		for i=1,6 do
-			if codeNumber % 2 == 1 then
+			if code % 2 == 1 then
 				OverwriteTable(protomon.bonuses[i].addons, protomon)
 				pointsSpent = pointsSpent + protomon.bonuses[i].cost
 			end
-			codeNumber = math.floor(codeNumber / 2)
+			code = math.floor(code / 2)
 		end
 	end
 	return pointsSpent
@@ -96,7 +94,6 @@ function ProtomonGo:OnLoad()
 
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
-	self.serializationConnectTimer = ApolloTimer.Create(1, true, "ConnectSerialization", self)
 end
 
 function ProtomonGo:OnDocLoaded()
@@ -137,17 +134,6 @@ function ProtomonGo:ConnectProtomonService()
 		ProtomonService = Apollo.GetAddon("ProtomonService")
 	else
 		self.protomonServiceConnectTimer:Stop()
-	end
-end
-
-function ProtomonGo:ConnectSerialization()
-	if not S then
-		local pack = Apollo.GetPackage("Module:Serialization-1.0")
-		if pack then
-			S = pack.tPackage
-		end
-	else
-		self.serializationConnectTimer:Stop()
 	end
 end
 
@@ -282,7 +268,7 @@ function ProtomonGo:OnBattleChat(iccomm, strMessage, strSender)
 	elseif arguments[1] == "setteam" then
 		self.protomon = CopyTable(protomonbattle_protomon)
 		for i=1,5 do
-			ApplyCode(self.protomon[i], string.sub(arguments[2], i, i))
+			ApplyCode(self.protomon[i], tonumber(arguments[1 + i]))
 		end
 	elseif arguments[1] == "waiting" then
 		self.wndBattle:FindChild("State"):SetText("Awaiting command")
@@ -336,11 +322,11 @@ function ProtomonGo:OnProtomonGo()
 			local wndList = self.wndGo:FindChild("List")
 			wndList:DestroyChildren()
 			for i=1,5 do
-				ApplyCode(self.protomon[i], string.sub(code, i, i))
+				ApplyCode(self.protomon[i], code[i])
 				local wndListItem = Apollo.LoadForm(self.xmlDoc, "ProtomonListItem", wndList, self)
 				wndListItem:FindChild("Button"):SetText(self.protomon[i].name)
 				wndListItem:FindChild("Button"):SetNormalTextColor(elementColors[self.protomon[i].element])
-				wndListItem:FindChild("Button"):SetData({id = i, code = string.sub(code, i, i)})
+				wndListItem:FindChild("Button"):SetData({id = i, code = code[i]})
 			end
 			wndList:ArrangeChildrenVert()
 			self.mycode = code
@@ -356,7 +342,6 @@ end
 
 -- A 'card' is a stat summary for a single protomon
 function ProtomonGo:MakeCard(wndParent, id, code)
-	local codenumber = S.DeserializeNumber(code)
 	local wndCard = Apollo.LoadForm(self.xmlDoc, "ProtomonCard", wndParent, self)
 	local protomon = CopyTable(protomonbattle_protomon[id])
 	ApplyCode(protomon, code)
@@ -379,7 +364,7 @@ function ProtomonGo:MakeCard(wndParent, id, code)
 	
 	wndList = wndCard:FindChild("Bonuses")
 	for i=1,6 do
-		if codenumber % 2 == 1 then
+		if code % 2 == 1 then
 			local wndListItem = Apollo.LoadForm(self.xmlDoc, "Bonus", wndList, self)
 			if protomon.bonuses[i].cost == 2 then
 				wndListItem:SetAnchorOffsets(0,0,0,70)
@@ -387,7 +372,7 @@ function ProtomonGo:MakeCard(wndParent, id, code)
 			wndListItem:FindChild("Button"):SetText(protomon.bonuses[i].description)
 			wndListItem:FindChild("Button"):SetNormalTextColor(elementColors[protomon.bonuses[i].descriptioncolor])
 		end
-		codenumber = math.floor(codenumber / 2)
+		code = math.floor(code / 2)
 	end
 	wndList:ArrangeChildrenVert()
 end
@@ -403,11 +388,11 @@ function ProtomonGo:RefreshProtodex()
 	local wndList = self.wndGo:FindChild("List")
 	wndList:DestroyChildren()
 	for i=1,5 do
-		ApplyCode(self.protomon[i], string.sub(self.mycode, i, i))
+		ApplyCode(self.protomon[i], self.mycode[i])
 		local wndListItem = Apollo.LoadForm(self.xmlDoc, "ProtomonListItem", wndList, self)
 		wndListItem:FindChild("Button"):SetText(self.protomon[i].name)
 		wndListItem:FindChild("Button"):SetNormalTextColor(elementColors[self.protomon[i].element])
-		wndListItem:FindChild("Button"):SetData({id = i, code = string.sub(self.mycode, i, i)})
+		wndListItem:FindChild("Button"):SetData({id = i, code = self.mycode[i]})
 	end
 	wndList:ArrangeChildrenVert()
 end
@@ -432,18 +417,18 @@ function ProtomonGo:OnFind(wndHandler, wndControl)
 	if id then
 		ProtomonService:RemoteCall("ProtomonServer", "FindProtomon",
 			function(x)
-				if PointsSpent(x) == PointsSpent(S.DeserializeNumber(string.sub(self.mycode, id, id))) and PointsSpent(x) > 0 then
+				if PointsSpent(x) == PointsSpent(self.mycode[id]) and PointsSpent(x) > 0 then
 					self.wndConfirm:FindChild("Before"):DestroyChildren()
-					self:MakeCard(self.wndConfirm:FindChild("Before"), id, string.sub(self.mycode, id, id))
+					self:MakeCard(self.wndConfirm:FindChild("Before"), id, self.mycode[id])
 					self.wndConfirm:FindChild("After"):DestroyChildren()
-					self:MakeCard(self.wndConfirm:FindChild("After"), id, S.SerializeNumber(x,1))
+					self:MakeCard(self.wndConfirm:FindChild("After"), id, x)
 					self.wndConfirm:Invoke()
 				else
 					self.protomon[id] = CopyTable(protomonbattle_protomon[id])
-					ApplyCode(self.protomon[id], S.SerializeNumber(x, 1))
+					ApplyCode(self.protomon[id], x)
 					self.wndGo:FindChild("Viewer"):DestroyChildren()
-					self:MakeCard(self.wndGo:FindChild("Viewer"), id, S.SerializeNumber(x, 1))
-					self.mycode = string.sub(self.mycode, 1, id - 1) .. S.SerializeNumber(x, 1) .. string.sub(self.mycode, id + 1)
+					self:MakeCard(self.wndGo:FindChild("Viewer"), id, x)
+					self.mycode[id] = x
 					self:RefreshProtodex()
 				end
 			end,
@@ -464,10 +449,10 @@ function ProtomonGo:OnAccept()
 		function(x)
 			if x < 64 then
 				self.protomon[id] = CopyTable(protomonbattle_protomon[id])
-				ApplyCode(self.protomon[id], S.SerializeNumber(x, 1))
+				ApplyCode(self.protomon[id], x)
 				self.wndGo:FindChild("Viewer"):DestroyChildren()
-				self:MakeCard(self.wndGo:FindChild("Viewer"), id, S.SerializeNumber(x, 1))
-				self.mycode = string.sub(self.mycode, 1, id - 1) .. S.SerializeNumber(x, 1) .. string.sub(self.mycode, id + 1)
+				self:MakeCard(self.wndGo:FindChild("Viewer"), id, x)
+				self.mycode[id] = x
 				self:RefreshProtodex()
 			end
 		end,
