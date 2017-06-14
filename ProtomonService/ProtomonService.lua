@@ -53,8 +53,7 @@ ProtomonService.services = {
 			-- called when finding a protomon in open world
 			["FindProtomon"] = {
 				args = {
-					S.NUMBER(1), -- id of protomon type
-					S.NUMBER(1), -- level of protomon found
+					S.NUMBER(1), -- zone-id of protomon (currently protomon type for testing)
 				},
 				returns = {
 					S.NUMBER(1), -- code number of prospective skill change, 'absent' if none
@@ -76,13 +75,13 @@ ProtomonService.services = {
 		host = "Protomon Server",
 		channelType = ICCommLib.CodeEnumICCommChannelType.Global,
 		rpcs = {
-			-- called when a player enters a new zone, instructs geo server to update his zone
+			-- called when a player enters a new zone, instructs geo server to lookup his zone
 			["EnterZone"] = {
 				args = {},
 				returns = {},
 			},
 			
-			-- retry call after entering zone to get update tracker info
+			-- call after entering zone to update tracker info
 			["GetZoneInfo"] = {
 				args = {},
 				returns = {
@@ -92,11 +91,14 @@ ProtomonService.services = {
 			},
 			
 			-- poll for nearby protomon
+			-- will only return a particular protomon to a given player once, unless they
+			-- call EnterZone again, which will refresh those which have not been captured
 			["RadarPulse"] = {
 				args = {},
 				returns = {
 					S.VARARRAY(S.TUPLE(
 						S.NUMBER(1), -- type, level of nearby protomon
+						S.NUMBER(1), -- id (unique within zone)
 						S.ARRAY(3, S.NUMBER(1)))), -- loc, relative to current position (x,y,z)
 				},
 			},

@@ -33,17 +33,6 @@ function Serialization.DeserializeNumber(code)
 	return result
 end
 
-function Serialization.DeserializeVarNumber(code)
-	
-	local result = Serialization.SerializeNumber(number % 47, 1)
-	number = math.floor(number / 47)
-	while number > 0 do
-		local digit = number % 47 + 47
-		result = Serialization.SerializeNumber(digit, 1) .. result
-	end
-	return result
-end
-
 --------------------
 -- arg/return marshallers for rpcs
 --------------------
