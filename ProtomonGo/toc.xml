@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Addon Author="Katia" APIVersion="15" Name="ProtomonGo" Description="">
+    <Script Name="ProtomonGo.lua"/>
+    <Form Name="ProtomonGo.xml"/>
+</Addon>
