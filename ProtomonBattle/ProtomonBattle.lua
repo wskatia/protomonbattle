@@ -61,7 +61,7 @@ function ProtomonBattle:OnTest()
 				function()
 					Print("Failed too!")
 				end,
-				"Katia Managan", "Katia Managan")
+				"Katia Managan", "Katia Prototype")
 		end,
 		function()
 			Print("Failed!")
