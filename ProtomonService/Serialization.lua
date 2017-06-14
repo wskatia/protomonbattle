@@ -31,7 +31,7 @@ end
 -- arg/return marshallers for rpcs
 --------------------
 
--- supports values up to 94^length - 1
+-- supports values up to 95^length - 1
 function Serialization.NUMBER(length)
 	return {
 		chars = length,
@@ -67,7 +67,7 @@ end
 Serialization.VARNUM = {
 	Encode = function(marshal, value, code, last)
 		if last then
-			return code .. Serialization.SerializeNumber(value, math.ceil(math.log(value + 1) / math.log(94)))
+			return code .. Serialization.SerializeNumber(value, math.ceil(math.log(value + 1) / math.log(95)))
 		else
 			local result = Serialization.SerializeNumber(value % 47, 1)
 			value = math.floor(value / 47)
