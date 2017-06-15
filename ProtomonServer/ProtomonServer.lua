@@ -3,7 +3,6 @@ local kDecorLo = 23340907
 local kDecorHi = 352321536
 
 local ProtomonService
-local S
 
 local ProtomonServer = {}
 
@@ -27,7 +26,6 @@ function ProtomonServer:OnLoad()
 	self.prospects = {}
 
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
-	self.serializationConnectTimer = ApolloTimer.Create(1, true, "ConnectSerialization", self)
 	self.afkTimer = ApolloTimer.Create(300, true, "StayAlive", self)  -- avoid afk timeout
 	self.persistTimer = ApolloTimer.Create(3600, true, "Persist", self)  -- save data
 end
@@ -56,7 +54,7 @@ end
 
 -- Protomon skill changes will favor minor adjustments of current loadout rather than complete randomization
 local costs = {1,1,1,1,2,2}
-function ProtomonServer:FindProtomon(player, protomon_id, level)
+function ProtomonServer:FindProtomon(player, protomon_id)
 	-- register player if doesn't exist
 	if not self.playercodes[player] then
 		self:NewPlayer(player)
@@ -165,17 +163,6 @@ end
 -- Startup connections
 --------------------
 
-function ProtomonServer:ConnectSerialization()
-	if not S then
-		local pack = Apollo.GetPackage("Module:Serialization-1.0")
-		if pack then
-			S = pack.tPackage
-		end
-	else
-		self.serializationConnectTimer:Stop()
-	end
-end
-
 function ProtomonServer:ConnectProtomonService()
 	if not ProtomonService then
 		ProtomonService = Apollo.GetAddon("ProtomonService")
@@ -196,8 +183,8 @@ function ProtomonServer:ConnectProtomonService()
 			end)
 			
 			ProtomonService:Implement("ProtomonServer", "FindProtomon",
-			function(caller, protomon_id, level)
-				return self:FindProtomon(caller, protomon_id, level)
+			function(caller, protomon_id)
+				return self:FindProtomon(caller, protomon_id)
 			end)
 			
 			ProtomonService:Implement("ProtomonServer", "AcceptProtomon",

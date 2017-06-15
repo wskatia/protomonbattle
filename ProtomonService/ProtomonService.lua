@@ -70,19 +70,17 @@ ProtomonService.services = {
 			},
 		},
 	},
+	
+	-- separate service, cuz who knows, maybe someday we'll need individual fleets for the services :P
 	["ProtomonGeoServer"] = {
 		host = "Protomon Server",
 		channelType = ICCommLib.CodeEnumICCommChannelType.Global,
 		rpcs = {
-			-- called when a player enters a new zone, instructs geo server to lookup his zone
+			-- called when a player enters a new zone, fetches zone info
 			["EnterZone"] = {
-				args = {},
-				returns = {},
-			},
-			
-			-- call after entering zone to update tracker info
-			["GetZoneInfo"] = {
-				args = {},
+				args = {
+					S.VARSTRING, -- zone name (plus owner if housing plot)
+				},
 				returns = {
 					S.VARARRAY(S.NUMBER(1)), -- available protomon types
 					S.VARARRAY(S.ARRAY(3, S.NUMBER(2))), -- points of interest to visit (x,y,z)
@@ -93,14 +91,31 @@ ProtomonService.services = {
 			-- will only return a particular protomon to a given player once, unless they
 			-- call EnterZone again, which will refresh those which have not been captured
 			["RadarPulse"] = {
-				args = {},
+				args = {
+					S.ARRAY(3, S.NUMBER(2)), -- current position
+				},
 				returns = {
-					S.VARARRAY(S.TUPLE(
-						S.NUMBER(1), -- type, level of nearby protomon
+					S.VARARRAY(S.TUPLE( -- nearby protomon
+						S.NUMBER(1), -- type, level
 						S.NUMBER(1), -- id (unique within zone)
 						S.ARRAY(3, S.NUMBER(1)))), -- loc, relative to current position (x,y,z)
 				},
 			},
+		},
+	},
+	["ProtomonAdminServer"] = {
+		host = "Protomon Server",
+		channelType = ICCommLib.CodeEnumICCommChannelType.Global, -- make this guild later
+		rpcs = {
+			-- assign protomon team
+			["SetTeam"] = {
+				args = {
+					S.VARSTRING, -- player name to modify
+					S.ARRAY(5, S.NUMBER(1)), -- new team code
+				},
+				returns = {},
+			},
+			
 		},
 	},
 }
