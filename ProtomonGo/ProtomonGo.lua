@@ -91,6 +91,7 @@ function ProtomonGo:OnLoad()
 	Apollo.RegisterSlashCommand("music", "OnMusicStart", self)
 
 	self.protomon = CopyTable(protomonbattle_protomon)
+	self.playingmusic = false
 
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
@@ -157,19 +158,21 @@ function ProtomonGo:OnMusicStart()
 end
 
 function ProtomonGo:PlayStart()
-	self.gameend = false
-	Sound.PlayFile("battlestart.wav")
-	self.musictimer = ApolloTimer.Create(7.82, false, "PlayLoop", self)
-	self.musictimer:Start()
+	if not self.playingmusic then
+		Sound.PlayFile("battlestart.wav")
+		self.musictimer = ApolloTimer.Create(7.82, false, "PlayLoop", self)
+	end
+	self.playingmusic = true
+	self.endingmusic = false
 end
 
 function ProtomonGo:PlayLoop()
-	if self.gameend then
+	if self.endingmusic then
 		Sound.PlayFile("battleend.wav")
+		self.playingmusic = false
 	else
 		Sound.PlayFile("battleloop.wav")
 		self.musictimer = ApolloTimer.Create(39.41, false, "PlayLoop", self)
-		self.musictimer:Start()
 	end
 end	
 
@@ -278,7 +281,7 @@ function ProtomonGo:OnBattleChat(iccomm, strMessage, strSender)
 		self.wndBattle:FindChild("State"):SetText("Turn in progress")
 	elseif arguments[1] == "endgame" then
 		self.wndBattle:FindChild("State"):SetText("Awaiting game start")
-		self.gameend = true
+		self.endingmusic = true
 	elseif arguments[1] == "switch" then
 		if self.activefighter ~= nil then
 			self.wndBattle:FindChild(self.activefighter):SetOpacity(0.3)
