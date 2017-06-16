@@ -48,6 +48,21 @@ function Serialization.NUMBER(length)
 	}
 end
 
+function Serialization.SIGNEDNUMBER(length)
+	return {
+		chars = length,
+		Encode = function(marshal, value, code, last)
+			return code .. Serialization.SerializeNumber(value + math.floor(95^length / 2), marshal.chars)
+		end,
+		Decode = function(marshal, code, last)
+			return Serialization.DeserializeNumber(string.sub(code, 1, marshal.chars)) - math.floor(95^length / 2), string.sub(code, marshal.chars + 1)
+		end,
+		FixedLength = function(marshal)
+			return true
+		end,
+	}
+end
+
 function Serialization.STRING(length)
 	return {
 		chars = length,
@@ -95,6 +110,23 @@ Serialization.VARNUM = {
 			end
 			return result, code
 		end
+	end,
+	FixedLength = function(marshal)
+		return false
+	end,
+}
+
+Serialization.VARSIGNEDNUM = {
+	Encode = function(marshal, value, code, last)
+		local designedValue = math.abs(value * 2)
+		if value < 0 then designedValue = designedValue + 1 end
+		return Serialization.VARNUM.Encode(marsha, designedValue, code, last)
+	end,
+	Decode = function(marshal, code, last)
+		local value, code = Serialization.Decode(marshal, code, last)
+		local signedValue = value / 2
+		if code % 2 == 1 then signedValue = signedValue * -1 end
+		return signedValue, code
 	end,
 	FixedLength = function(marshal)
 		return false

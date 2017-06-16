@@ -68,37 +68,28 @@ ProtomonService.services = {
 					S.NUMBER(1), -- code number of new protomon loadout
 				},
 			},
-		},
-	},
-	
-	-- separate service, cuz who knows, maybe someday we'll need individual fleets for the services :P
-	["ProtomonGeoServer"] = {
-		host = "Protomon Server",
-		channelType = ICCommLib.CodeEnumICCommChannelType.Global,
-		rpcs = {
-			-- called when a player enters a new zone, fetches zone info
-			["EnterZone"] = {
+
+			-- called when a player enters a new world
+			["EnterWorld"] = {
 				args = {
-					S.VARSTRING, -- zone name (plus owner if housing plot)
+					S.NUMBER(2), -- GetCurrentWorldId()
 				},
-				returns = {
-					S.VARARRAY(S.NUMBER(1)), -- available protomon types
-					S.VARARRAY(S.ARRAY(3, S.NUMBER(2))), -- points of interest to visit (x,y,z)
-				},
+				returns = {},
 			},
 			
 			-- poll for nearby protomon
 			-- will only return a particular protomon to a given player once, unless they
-			-- call EnterZone again, which will refresh those which have not been captured
+			-- call EnterWorld again, which will refresh those which have not been captured
 			["RadarPulse"] = {
 				args = {
-					S.ARRAY(3, S.NUMBER(2)), -- current position
+					S.ARRAY(3, S.SIGNEDVARNUMBER), -- current position
 				},
 				returns = {
+					S.NUMBER(1), -- heading (4 bits) & range (2 bits) to nearest protomon, 64 if none
 					S.VARARRAY(S.TUPLE( -- nearby protomon
-						S.NUMBER(1), -- type, level
-						S.NUMBER(1), -- id (unique within zone)
-						S.ARRAY(3, S.NUMBER(1)))), -- loc, relative to current position (x,y,z)
+						S.NUMBER(1), -- type (4 bits), level (2 bits)
+						S.NUMBER(2), -- id (unique within world)
+						S.ARRAY(3, S.SIGNEDNUMBER(1)))), -- loc, relative to current position (x,y,z)
 				},
 			},
 		},
