@@ -69,32 +69,25 @@ ProtomonService.services = {
 				},
 			},
 
-			-- called when a player enters a new world
-			["EnterWorld"] = {
-				args = {
-					S.NUMBER(2), -- GetCurrentWorldId()
-				},
-				returns = {},
-			},
-			
 			-- poll for nearby protomon
 			-- will only return a particular protomon to a given player once, unless they
 			-- call EnterWorld again, which will refresh those which have not been captured
 			["RadarPulse"] = {
 				args = {
+					S.VARSTRING, -- combination of GetCurrentWorldId()
 					S.ARRAY(3, S.SIGNEDVARNUMBER), -- current position
 				},
 				returns = {
-					S.NUMBER(1), -- heading (4 bits) & range (2 bits) to nearest protomon, 64 if none
+					S.NUMBER(1), -- element (3 bits), heading (2 bits) & range (1 bits) to nearest protomon
 					S.VARARRAY(S.TUPLE( -- nearby protomon
 						S.NUMBER(1), -- type (4 bits), level (2 bits)
-						S.NUMBER(2), -- id (unique within world)
+						S.VARNUMBER, -- id (unique within world)
 						S.ARRAY(3, S.SIGNEDNUMBER(1)))), -- loc, relative to current position (x,y,z)
 				},
 			},
 		},
 	},
-	["ProtomonAdminServer"] = {
+	["ProtomonServerAdmin"] = {
 		host = "Protomon Server",
 		channelType = ICCommLib.CodeEnumICCommChannelType.Global, -- make this guild later
 		rpcs = {
@@ -103,6 +96,16 @@ ProtomonService.services = {
 				args = {
 					S.VARSTRING, -- player name to modify
 					S.ARRAY(5, S.NUMBER(1)), -- new team code
+				},
+				returns = {},
+			},
+			
+			-- create a protomon here
+			["AddSpawn"] = {
+				args = {
+					S.NUMBER(1), -- type/level
+					S.VARSTRING, -- combination of GetCurrentWorldId() and hash of plot owner if appropriate
+					S.ARRAY(3, S.VARSIGNEDNUMBER), -- position (x,y,z)
 				},
 				returns = {},
 			},

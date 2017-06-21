@@ -24,10 +24,25 @@ function ProtomonServer:OnLoad()
 	self.experience = {}
 	self.skillups = {}
 	self.prospects = {}
+	self.protomon = {} -- if game gets popular, we will need a kd-tree eventually
 
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
-	self.afkTimer = ApolloTimer.Create(300, true, "StayAlive", self)  -- avoid afk timeout
+	self.afkTimer = ApolloTimer.Create(60, true, "StayAlive", self)  -- avoid afk timeout
 	self.persistTimer = ApolloTimer.Create(3600, true, "Persist", self)  -- save data
+end
+
+--------------------
+-- Utility functions
+--------------------
+
+local function MarkForDeath(parent, label, delay)
+	local child = parent[label]
+	child.myParent = parent
+	child.myLabel = label
+	child.Die = function(dying)
+		dying.myParent[dying.myLabel] = nil
+	end
+	ApolloTimer.Create(delay, false, "Die", child)
 end
 
 --------------------
@@ -54,14 +69,14 @@ end
 
 -- Protomon skill changes will favor minor adjustments of current loadout rather than complete randomization
 local costs = {1,1,1,1,2,2}
-function ProtomonServer:FindProtomon(player, protomon_id)
+function ProtomonServer:FindProtomon(player, protomonId)
 	-- register player if doesn't exist
 	if not self.playercodes[player] then
 		self:NewPlayer(player)
 	end
 	
 	-- get info about current protomon
-	local code = self.playercodes[player][protomon_id]
+	local code = self.playercodes[player][protomonId]
 	local bits = {}
 	local cost = 0
 	local one_sets = {}
@@ -70,7 +85,7 @@ function ProtomonServer:FindProtomon(player, protomon_id)
 	local two_unsets = {}
 	if code >= 64 then
 		-- no protomon, make a new one
-		self.playercodes[player][protomon_id] = 0
+		self.playercodes[player][protomonId] = 0
 		return 0
 	end
 	for i=1,6 do
@@ -93,9 +108,9 @@ function ProtomonServer:FindProtomon(player, protomon_id)
 	end
 
 	local levelup = false
-	if (self.skillups[player][protomon_id] < 10 or cost >= 3) and cost > 0 then
+	if (self.skillups[player][protomonId] < 1 or cost >= 3) and cost > 0 then
 		-- handle skill swaps
-		self.skillups[player][protomon_id] = self.skillups[player][protomon_id] + 1
+		self.skillups[player][protomonId] = self.skillups[player][protomonId] + 1
 		if cost == 1 then -- level 1, just swap one skill for another
 			local togain = one_unsets[math.random(#one_unsets)]
 			bits[one_sets[1]] = 0
@@ -133,7 +148,7 @@ function ProtomonServer:FindProtomon(player, protomon_id)
 		-- handle level ups
 		levelup = true
 		bits[one_unsets[math.random(#one_unsets)]] = 1
-		self.skillups[player][protomon_id] = 0
+		self.skillups[player][protomonId] = 0
 	end
 	
 	local newcode = 0
@@ -141,22 +156,77 @@ function ProtomonServer:FindProtomon(player, protomon_id)
 		newcode = newcode * 2 + bits[i]
 	end
 	if levelup then
-		self.playercodes[player][protomon_id] = newcode
+		self.playercodes[player][protomonId] = newcode
 	else
-		self.prospects[player] = {protomon_id, newcode}
+		self.prospects[player] = {protomonId, newcode}
 	end
 	return newcode
 end
 
-function ProtomonServer:AcceptProtomon(player, protomon_id)
-	if self.prospects[player] and self.prospects[player][1] == protomon_id then
+function ProtomonServer:AcceptProtomon(player, protomonId)
+	if self.prospects[player] and self.prospects[player][1] == protomonId then
 		local code = self.prospects[player][2]
-		self.playercodes[player][protomon_id] = code
+		self.playercodes[player][protomonId] = code
 		self.prospects[player] = nil
 		return code
 	else
 		return 64
 	end
+end
+
+function ProtomonServer:AddSpawn(typeLevel, worldId, position)
+	if self.protomon[worldId] == nil then self.protomon[worldId] = {} end
+	local newProtomon = {}
+	newProtomon.typeLevel = typeLevel
+	newProtomon.location = position
+	newProtomon.viewers = {}
+	newProtomon.takers = {}
+	table.insert(self.protomon[worldId], newProtomon)
+end
+
+function ProtomonServer:RadarPulse(playerName, worldId, position)
+	local nearbyProtomon = {}
+	local nearestHeading = 64  -- 64 is considered non-existent heading
+	local nearestDist
+	
+	-- TODO: this loop strong candidate for optimization if we have timeouts later; most likely
+	-- it won't be an issue before comm limits are though
+	for zoneId, protomon in pairs(self.protomon[worldId]) do  -- not ipairs, we skip over the gaps
+		local distance = math.sqrt((position[1] - protomon.location[1])^2 +
+			(position[2] - protomon.location[2])^2 +
+			(position[3] - protomon.location[3])^2)
+		if distance < nearestDist then
+			nearestDist = distance
+			local protomonType = math.floor(protomon.typeLevel / 4)
+			local protomonLevel = protomon.typeLevel % 4 + 1
+			local heading
+			local xDiff = protomon.location[1] - position[1]
+			local zDiff = protomon.location[3] - position[3]
+			if math.abs(zDiff) > math.abs(xDiff) then
+				if zDiff > 0 then heading = 0 else heading = 2 end
+			else
+				if xDiff > 0 then heading = 1 else heading = 3 end
+			end
+			local isClose
+			if distance < 200 then isClose = 1 else isClose = 0 end
+			nearestHeading = protomonType * 8 + heading * 2 + isClose
+		end
+		if distance < 30 and not protomon.viewers[playerName] then
+			table.insert(nearbyProtomon, {
+				protomon.typeLevel,
+				zoneId,
+				{
+					protomon.position[1] - position[1],
+					protomon.position[2] - position[2],
+					protomon.position[3] - position[3],
+				}
+			})
+			protomon.viewers[playerName] = {}
+			MarkForDeath(protomon.viewers, playerName, 600)
+		end
+	end
+	
+	return nearestHeading, nearbyProtomon
 end
 
 --------------------
@@ -168,29 +238,39 @@ function ProtomonServer:ConnectProtomonService()
 		ProtomonService = Apollo.GetAddon("ProtomonService")
 		if ProtomonService then
 			ProtomonService:Implement("ProtomonServer", "GetBattleCodes",
-			function(caller, player1, player2)
-				return self:GetBattleCode(player1), self:GetBattleCode(player2)
-			end)
+				function(caller, player1, player2)
+					return self:GetBattleCode(player1), self:GetBattleCode(player2)
+				end)
 
 			ProtomonService:Implement("ProtomonServer", "GetMyCode",
-			function(caller)
-				return self:GetBattleCode(caller)
-			end)
+				function(caller)
+					return self:GetBattleCode(caller)
+				end)
 
 			ProtomonService:Implement("ProtomonServer", "JoinProtomon",
-			function(caller)
-				self:NewPlayer(caller)
-			end)
+				function(caller)
+					self:NewPlayer(caller)
+				end)
 			
 			ProtomonService:Implement("ProtomonServer", "FindProtomon",
-			function(caller, protomon_id)
-				return self:FindProtomon(caller, protomon_id)
-			end)
+				function(caller, protomonId)
+					return self:FindProtomon(caller, protomonId)
+				end)
 			
 			ProtomonService:Implement("ProtomonServer", "AcceptProtomon",
-			function(caller, protomon_id)
-				return self:AcceptProtomon(caller, protomon_id)
-			end)
+				function(caller, protomonId)
+					return self:AcceptProtomon(caller, protomonId)
+				end)
+
+			ProtomonService:Implement("ProtomonServer", "RadarPulse",
+				function(caller, worldId, position)
+					return self:RadarPulse(caller, worldId, position)
+				end)
+
+			ProtomonService:Implement("ProtomonServerAdmin", "AddSpawn",
+				function(caller, typeLevel, worldId, position)
+					return self:AddSpawn(typeLevel, worldId, position)
+				end)
 
 		end
 	else
@@ -231,6 +311,10 @@ function ProtomonServer:OnSave(eLevel)
 		tSave.playercodes = self.playercodes
 		tSave.experience = self.experience
 		tSave.skillups = self.skillups
+		tSave.protomon = self.protomon
+		for _, protomon in pairs(tSave.protomon) do
+			protomon.viewers = {}  -- do not save these
+		end
 		return tSave
 	end
 end
@@ -241,6 +325,7 @@ function ProtomonServer:OnRestore(eLevel, tData)
 		self.playercodes = tData.playercodes or {}
 		self.experience = tData.experience or {}
 		self.skillups = tData.skillups or {}
+		self.protomon = tData.protomon or {}
 	end
 end
 
