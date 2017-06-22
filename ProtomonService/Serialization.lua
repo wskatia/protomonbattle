@@ -89,6 +89,7 @@ Serialization.VARNUM = {
 			while value > 0 do
 				local digit = value % 47 + 47
 				result = Serialization.SerializeNumber(digit, 1) .. result
+				value = math.floor(value / 47)
 			end
 			return code .. result
 		end
@@ -120,12 +121,12 @@ Serialization.VARSIGNEDNUM = {
 	Encode = function(marshal, value, code, last)
 		local designedValue = math.abs(value * 2)
 		if value < 0 then designedValue = designedValue + 1 end
-		return Serialization.VARNUM.Encode(marsha, designedValue, code, last)
+		return Serialization.VARNUM.Encode(marshal, designedValue, code, last)
 	end,
 	Decode = function(marshal, code, last)
-		local value, code = Serialization.Decode(marshal, code, last)
-		local signedValue = value / 2
-		if code % 2 == 1 then signedValue = signedValue * -1 end
+		local value, code = Serialization.VARNUM.Decode(marshal, code, last)
+		local signedValue = math.floor(value / 2)
+		if value % 2 == 1 then signedValue = signedValue * -1 end
 		return signedValue, code
 	end,
 	FixedLength = function(marshal)
@@ -215,21 +216,21 @@ function Serialization.TUPLE(...)
 	return {
 		subMarshals = arg,
 		Encode = function(marshal, value, code, last)
-			for i = 1, #subMarshals do
+			for i = 1, #marshal.subMarshals do
 				code = marshal.subMarshals[i]:Encode(value[i], code, last and i == #subMarshals)
 			end
 			return code
 		end,
 		Decode = function(marshal, code, last)
 			local result = {}
-			for i = 1, #subMarshals do
+			for i = 1, #marshal.subMarshals do
 				result[i], code = marshal.subMarshals[i]:Decode(code, last and i == #subMarshals)
 			end
 			return result, code
 		end,
 		FixedLength = function(marshal)
-			for i = 1, #subMarshals do
-				if not subMarshals[i]:FixedLength() then
+			for i = 1, #marshal.subMarshals do
+				if not marshal.subMarshals[i]:FixedLength() then
 					return false
 				end
 			end

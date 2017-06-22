@@ -75,13 +75,13 @@ ProtomonService.services = {
 			["RadarPulse"] = {
 				args = {
 					S.VARSTRING, -- combination of GetCurrentWorldId()
-					S.ARRAY(3, S.SIGNEDVARNUMBER), -- current position
+					S.ARRAY(3, S.VARSIGNEDNUM), -- current position
 				},
 				returns = {
 					S.NUMBER(1), -- element (3 bits), heading (2 bits) & range (1 bits) to nearest protomon
 					S.VARARRAY(S.TUPLE( -- nearby protomon
 						S.NUMBER(1), -- type (4 bits), level (2 bits)
-						S.VARNUMBER, -- id (unique within world)
+						S.VARNUM, -- id (unique within world)
 						S.ARRAY(3, S.SIGNEDNUMBER(1)))), -- loc, relative to current position (x,y,z)
 				},
 			},
@@ -105,7 +105,7 @@ ProtomonService.services = {
 				args = {
 					S.NUMBER(1), -- type/level
 					S.VARSTRING, -- combination of GetCurrentWorldId() and hash of plot owner if appropriate
-					S.ARRAY(3, S.VARSIGNEDNUMBER), -- position (x,y,z)
+					S.ARRAY(3, S.VARSIGNEDNUM), -- position (x,y,z)
 				},
 				returns = {},
 			},

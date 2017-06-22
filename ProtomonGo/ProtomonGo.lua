@@ -87,6 +87,7 @@ function ProtomonGo:OnLoad()
 	self.xmlDoc:RegisterCallback("OnDocLoaded", self)
 	Apollo.RegisterSlashCommand("protomongo", "OnProtomonGo", self)
 	Apollo.RegisterSlashCommand("protomonbattle", "OnProtomonBattle", self)
+	Apollo.RegisterSlashCommand("protomontrack", "OnProtomonTrack", self)
 	Apollo.RegisterSlashCommand("protomonreset", "OnProtomonReset", self)
 	Apollo.RegisterSlashCommand("music", "OnMusicStart", self)
 
@@ -115,6 +116,14 @@ function ProtomonGo:OnDocLoaded()
 		end
 		
 	    self.wndGo:Show(false, true)
+
+	    self.wndTrack = Apollo.LoadForm(self.xmlDoc, "Tracker", nil, self)
+		if self.wndTrack == nil then
+			Apollo.AddAddonErrorText(self, "Could not load the Tracker window for some reason.")
+			return
+		end
+		
+	    self.wndTrack:Show(false, true)
 
 	    self.wndConfirm = Apollo.LoadForm(self.xmlDoc, "SwapConfirm", nil, self)
 		if self.wndConfirm == nil then
@@ -398,6 +407,46 @@ function ProtomonGo:RefreshProtodex()
 		wndListItem:FindChild("Button"):SetData({id = i, code = self.mycode[i]})
 	end
 	wndList:ArrangeChildrenVert()
+end
+
+--------------------
+-- Protomon tracker
+--------------------
+
+function ProtomonGo:OnProtomonTrack()
+	self.wndTrack:Invoke()
+	self.wndCompass = self.wndTrack:FindChild("Compass")
+	self.wndArrow = self.wndCompass:FindChild("Arrow")
+	self.compassTimer = ApolloTimer.Create(0.05, true, "UpdateCompass", self)
+	self:UpdateArrow()
+end
+
+function ProtomonGo:OnCloseTracker()
+	self.wndTrack:Close()
+	self.compassTimer:Stop()
+	self.arrowTimer:Stop()
+end
+
+function ProtomonGo:UpdateCompass()
+	local facing = GameLib.GetPlayerUnit():GetFacing()
+	local rotation = -90 - math.deg(math.atan(facing.z/facing.x))
+	if facing.x < 0 then rotation = rotation + 180 end
+	self.wndCompass:SetRotation(rotation)
+end
+
+function ProtomonGo:UpdateArrow()
+	local position = GameLib.GetPlayerUnit():GetPosition()
+	ProtomonService:RemoteCall("ProtomonServer", "RadarPulse",
+		function(elementHeadingRange, nearbyProtomon)
+			local heading = math.floor(elementHeadingRange / 2) % 4
+			self.wndArrow:SetRotation(heading * 90)
+			self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
+		end,
+		function()
+			Print("Could not contact server!")
+			self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
+		end,
+		"test", {math.floor(position.x), math.floor(position.y), math.floor(position.z)})
 end
 
 --------------------

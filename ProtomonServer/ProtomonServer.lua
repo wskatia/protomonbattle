@@ -195,7 +195,7 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 		local distance = math.sqrt((position[1] - protomon.location[1])^2 +
 			(position[2] - protomon.location[2])^2 +
 			(position[3] - protomon.location[3])^2)
-		if distance < nearestDist then
+		if nearestDist == nil or distance < nearestDist then
 			nearestDist = distance
 			local protomonType = math.floor(protomon.typeLevel / 4)
 			local protomonLevel = protomon.typeLevel % 4 + 1
@@ -203,7 +203,7 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 			local xDiff = protomon.location[1] - position[1]
 			local zDiff = protomon.location[3] - position[3]
 			if math.abs(zDiff) > math.abs(xDiff) then
-				if zDiff > 0 then heading = 0 else heading = 2 end
+				if zDiff > 0 then heading = 2 else heading = 0 end
 			else
 				if xDiff > 0 then heading = 1 else heading = 3 end
 			end
@@ -216,9 +216,9 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 				protomon.typeLevel,
 				zoneId,
 				{
-					protomon.position[1] - position[1],
-					protomon.position[2] - position[2],
-					protomon.position[3] - position[3],
+					protomon.location[1] - position[1],
+					protomon.location[2] - position[2],
+					protomon.location[3] - position[3],
 				}
 			})
 			protomon.viewers[playerName] = {}
@@ -312,8 +312,10 @@ function ProtomonServer:OnSave(eLevel)
 		tSave.experience = self.experience
 		tSave.skillups = self.skillups
 		tSave.protomon = self.protomon
-		for _, protomon in pairs(tSave.protomon) do
-			protomon.viewers = {}  -- do not save these
+		for _, world in pairs(tSave.protomon) do
+			for _, protomon in pairs(world) do
+				protomon.viewers = {}  -- do not save these
+			end
 		end
 		return tSave
 	end
