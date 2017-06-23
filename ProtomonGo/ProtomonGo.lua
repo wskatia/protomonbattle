@@ -68,6 +68,43 @@ local function PointsSpent(code)
 	return result
 end
 
+local function FloatText(strMessage)
+	local tTextOption =	{
+		strFontFace = "CRB_FloaterLarge",
+		fDuration = 3.5,
+		fScale = 1,
+		fExpand = 1,
+		fVibrate = 0,
+		fSpinAroundRadius = 0,
+		fFadeInDuration = 0.2,
+		fFadeOutDuration = 0.5,
+		fVelocityDirection = 0,
+		fVelocityMagnitude = 0,
+		fAccelDirection = 0,
+		fAccelMagnitude = 0,
+		fEndHoldDuration = 1,
+		eLocation = CombatFloater.CodeEnumFloaterLocation.Bottom,
+		fOffsetDirection = 0,
+		fOffset = 0,
+		eCollisionMode = CombatFloater.CodeEnumFloaterCollisionMode.Horizontal,
+		fExpandCollisionBoxWidth = 1,
+		fExpandCollisionBoxHeight = 1,
+		nColor = 0xFF0000,
+		iUseDigitSpriteSet = nil,
+		bUseScreenPos = true,
+		bShowOnTop = true,
+		fRotation = 0,
+		fDelay = 0,
+		nDigitSpriteSpacing = 0,
+	}
+	
+	CombatFloater.ShowTextFloater(GameLib.GetControlledUnit(), strMessage, tTextOption)
+end
+
+--------------------
+-- Protomon Go
+--------------------
+
 local ProtomonGo = {} 
  
 function ProtomonGo:new(o)
@@ -87,12 +124,13 @@ function ProtomonGo:OnLoad()
 	self.xmlDoc:RegisterCallback("OnDocLoaded", self)
 	Apollo.RegisterSlashCommand("protomongo", "OnProtomonGo", self)
 	Apollo.RegisterSlashCommand("protomonbattle", "OnProtomonBattle", self)
-	Apollo.RegisterSlashCommand("protomontrack", "OnProtomonTrack", self)
+	Apollo.RegisterSlashCommand("protomontracker", "OnProtomonTrack", self)
 	Apollo.RegisterSlashCommand("protomonreset", "OnProtomonReset", self)
 	Apollo.RegisterSlashCommand("music", "OnMusicStart", self)
 
 	self.protomon = CopyTable(protomonbattle_protomon)
 	self.playingmusic = false
+	self.nearbyProtomon = {}
 
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
@@ -124,6 +162,14 @@ function ProtomonGo:OnDocLoaded()
 		end
 		
 	    self.wndTrack:Show(false, true)
+
+	    self.wndView = Apollo.LoadForm(self.xmlDoc, "Viewer", nil, self)
+		if self.wndView == nil then
+			Apollo.AddAddonErrorText(self, "Could not load the Viewer window for some reason.")
+			return
+		end
+		
+	    self.wndView:Show(false, true)
 
 	    self.wndConfirm = Apollo.LoadForm(self.xmlDoc, "SwapConfirm", nil, self)
 		if self.wndConfirm == nil then
@@ -425,28 +471,152 @@ function ProtomonGo:OnCloseTracker()
 	self.wndTrack:Close()
 	self.compassTimer:Stop()
 	self.arrowTimer:Stop()
+	for _, protomon in pairs(self.nearbyProtomon) do
+		self.wndView:DestroyPixie(protomon.pixieId)
+	end
+	self.nearbyProtomon = {}
 end
 
 function ProtomonGo:UpdateCompass()
+	if GameLib.GetPlayerUnit() == nil then
+		self:OnCloseTracker()
+		return
+	end
 	local facing = GameLib.GetPlayerUnit():GetFacing()
 	local rotation = -90 - math.deg(math.atan(facing.z/facing.x))
 	if facing.x < 0 then rotation = rotation + 180 end
 	self.wndCompass:SetRotation(rotation)
 end
 
+function ProtomonGo:MarkForDeath(parent, label, delay)
+	local child = parent[label]
+	child.myParent = parent
+	child.myLabel = label
+	child.Die = function(dying)
+		dying.myParent[dying.myLabel] = nil
+		self.wndView:DestroyPixie(dying.pixieId)
+	end
+	child.deathTimer = ApolloTimer.Create(delay, false, "Die", child)
+end
+
 function ProtomonGo:UpdateArrow()
 	local position = GameLib.GetPlayerUnit():GetPosition()
+	local callingPosition = {
+		math.floor(position.x),
+		math.floor(position.y),
+		math.floor(position.z),		
+	}
 	ProtomonService:RemoteCall("ProtomonServer", "RadarPulse",
 		function(elementHeadingRange, nearbyProtomon)
-			local heading = math.floor(elementHeadingRange / 2) % 4
-			self.wndArrow:SetRotation(heading * 90)
-			self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
+			if elementHeadingRange >= 64 then
+				self.wndCompass:SetOpacity(0)
+			else
+				local range = elementHeadingRange % 2
+				local heading = math.floor(elementHeadingRange / 2) % 4
+				local element = math.floor(elementHeadingRange / 8)
+
+				if range == 1 then
+					self.wndCompass:SetOpacity(1)
+				else
+					self.wndCompass:SetOpacity(0.3)
+				end
+				self.wndArrow:SetRotation(heading * 90)
+				self.wndArrow:SetBGColor(elementColors[protomonbattle_protomon[element].element])
+				self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
+			end
+			for _, nearby in ipairs(nearbyProtomon) do
+				local newProtomon = {
+					protomonId = math.floor(nearby[1] / 4),
+					level = nearby[1] % 4,
+					location = {
+						x = nearby[3][1] + callingPosition[1],
+						y = nearby[3][2] + callingPosition[2],
+						z = nearby[3][3] + callingPosition[3],
+					},
+				}
+				newProtomon.pixieId = self.wndView:AddPixie({
+					strSprite="zonemap:UI_ZoneMap_RewardProgressEndResultSpinner2",
+					cr = elementColors[protomonbattle_protomon[newProtomon.protomonId].element],
+					loc = {
+						fPoints = {0.5,2,0.5,2},
+						nOffsets = {0,0,0,0}}
+					})
+
+				self.nearbyProtomon[nearby[2]] = newProtomon
+				self:MarkForDeath(self.nearbyProtomon, nearby[2], 100)
+			end
 		end,
 		function()
+			self.wndCompass:SetOpacity(0)
 			Print("Could not contact server!")
 			self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
 		end,
-		"test", {math.floor(position.x), math.floor(position.y), math.floor(position.z)})
+		"test", callingPosition)
+end
+
+--------------------
+-- Protomon viewer
+--------------------
+
+function ProtomonGo:OnProtomonView()
+	if not self.wndView:IsVisible() then
+		self.wndView:Invoke()
+		self.viewTimer = ApolloTimer.Create(0.03, true, "UpdateViewer", self)
+	else
+		self.wndView:Close()
+	end
+end
+
+function ProtomonGo:UpdateViewer()
+	if not self.wndView:IsVisible() then
+		self.viewTimer:Stop()
+		return
+	end
+	
+	local myPos = GameLib.GetPlayerUnit():GetPosition()
+	local screenHeight = self.wndView:GetHeight() * 5 / 3
+	local screenWidth = self.wndView:GetWidth() * 5 / 3
+	for _, protomon in pairs(self.nearbyProtomon) do
+		local distance = math.sqrt((protomon.location.x - myPos.x)^2 +
+			(protomon.location.y - myPos.y)^2 +
+			(protomon.location.z - myPos.z)^2)
+		if distance > 20 then
+			self.wndView:UpdatePixie(protomon.pixieId, {
+				strSprite="zonemap:UI_ZoneMap_RewardProgressEndResultSpinner2",
+				cr = elementColors[protomonbattle_protomon[protomon.protomonId].element],
+				loc = {
+					fPoints = {0.5,2,0.5,2},
+					nOffsets = {0,0,0,0}}
+				})
+		else
+			local screenPos = GameLib.WorldLocToScreenPoint(Vector3.New(
+				protomon.location.x, protomon.location.y, protomon.location.z))
+			if screenPos.z > 0 then
+				local adjustedX = ((screenPos.x / screenWidth) - 0.2) / 0.6
+				local adjustedY = ((screenPos.y / screenHeight) - 0.2) / 0.6
+				self.wndView:UpdatePixie(protomon.pixieId, {
+					strSprite="zonemap:UI_ZoneMap_RewardProgressEndResultSpinner2",
+					cr = elementColors[protomonbattle_protomon[protomon.protomonId].element],
+					loc = {
+						fPoints = {adjustedX, adjustedY, adjustedX, adjustedY},
+						nOffsets = {
+							-500 / distance,
+							-1000 / distance,
+							500 / distance,
+							0,
+							}}
+					})
+			else
+				self.wndView:UpdatePixie(protomon.pixieId, {
+					strSprite="zonemap:UI_ZoneMap_RewardProgressEndResultSpinner2",
+					cr = elementColors[protomonbattle_protomon[protomon.protomonId].element],
+					loc = {
+						fPoints = {0.5,2,0.5,2},
+						nOffsets = {0,0,0,0}}
+					})
+			end
+		end
+	end
 end
 
 --------------------

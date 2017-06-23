@@ -42,7 +42,7 @@ local function MarkForDeath(parent, label, delay)
 	child.Die = function(dying)
 		dying.myParent[dying.myLabel] = nil
 	end
-	ApolloTimer.Create(delay, false, "Die", child)
+	child.deathTimer = ApolloTimer.Create(delay, false, "Die", child)
 end
 
 --------------------
@@ -208,7 +208,7 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 				if xDiff > 0 then heading = 1 else heading = 3 end
 			end
 			local isClose
-			if distance < 200 then isClose = 1 else isClose = 0 end
+			if distance < 100 then isClose = 1 else isClose = 0 end
 			nearestHeading = protomonType * 8 + heading * 2 + isClose
 		end
 		if distance < 30 and not protomon.viewers[playerName] then
@@ -222,7 +222,7 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 				}
 			})
 			protomon.viewers[playerName] = {}
-			MarkForDeath(protomon.viewers, playerName, 600)
+			MarkForDeath(protomon.viewers, playerName, 100)
 		end
 	end
 	

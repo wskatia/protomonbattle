@@ -95,9 +95,9 @@ function ProtomonBattle:OnTestThree(strCmd, strArg)
 		table.insert(arguments, arg)
 	end
 	
-	local typeLevel = protomonbattle_names[arguments[1]] * 4 + tonumber(arguments[2])
+	local typeLevel = protomonbattle_names[arguments[1]] * 4 + 1
 	local gamePos = GameLib.GetPlayerUnit():GetPosition()
-	local positionArg = {math.floor(gamePos.x), math.floor(gamePos.y), math.floor(gamePos.z)}
+	local positionArg = {math.floor(gamePos.x), math.floor(gamePos.y)+1, math.floor(gamePos.z)}
 	
 	ProtomonService:RemoteCall("ProtomonServerAdmin", "AddSpawn",
 		function(x)
