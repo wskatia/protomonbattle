@@ -174,7 +174,6 @@ function ProtomonGo:OnLoad()
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
 end
 
--- testing purposes, get rid of this later
 function ProtomonGo:OnAddSpawn(strCmd, strArg)
 	local arguments = {}
 	for arg in string.gmatch(strArg, "%S+") do
@@ -245,6 +244,14 @@ function ProtomonGo:OnDocLoaded()
 		end
 		
 	    self.wndLevel:Show(false, true)
+		
+	    self.wndPos = Apollo.LoadForm(self.xmlDoc, "Position", nil, self)
+		if self.wndPos == nil then
+			Apollo.AddAddonErrorText(self, "Could not load the position window for some reason.")
+			return
+		end
+		
+	    self.wndPos:Show(true, true)
 	end
 end
 
@@ -634,10 +641,22 @@ end
 -- Protomon viewer
 --------------------
 
+function ProtomonGo:InFirstPerson()
+	local pos = GameLib.GetPlayerUnit():GetPosition()
+	local facing = GameLib.GetPlayerUnit():GetFacing()
+	self.wndPos:SetWorldLocation(Vector3.New(pos.x-facing.x, pos.y, pos.z-facing.z))
+	return not self.wndPos:IsOnScreen()
+end
+
 function ProtomonGo:OnProtomonView()
 	if not self.wndView:IsVisible() then
-		self.wndView:Invoke()
-		self.viewTimer = ApolloTimer.Create(0.03, true, "UpdateViewer", self)
+		if self:InFirstPerson() then
+			self.wndView:Invoke()
+			self.viewTimer = ApolloTimer.Create(0.03, true, "UpdateViewer", self)
+			self.closeViewTimer = ApolloTimer.Create(1, true, "CloseViewer", self)
+		else
+			FloatText("Enter first-person before activating the viewer!")
+		end
 	else
 		self.wndView:Close()
 		
@@ -691,12 +710,19 @@ function ProtomonGo:OnProtomonView()
 	end
 end
 
+function ProtomonGo:CloseViewer()
+	if not self:InFirstPerson() then
+		self.wndView:Close()
+	end
+end
+
 function ProtomonGo:UpdateViewer()
 	if not GameLib.GetPlayerUnit() then
 		self.wndView:Close()
 	end
 	if not self.wndView:IsVisible() then
 		self.viewTimer:Stop()
+		self.closeViewTimer:Stop()
 		return
 	end
 	
