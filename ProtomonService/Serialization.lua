@@ -12,9 +12,9 @@ Serialization.null = setmetatable ({}, {
 function Serialization.SerializeNumber(number, digits)
 	local result = ""
 	for i=1,digits do
-		local digitValue = number % 95
-		result = result .. string.char(digitValue + 32)
-		number = math.floor(number / 95)
+		local digitValue = number % 94
+		result = result .. string.char(digitValue + 33)
+		number = math.floor(number / 94)
 	end
 	return result
 end
@@ -22,7 +22,7 @@ end
 function Serialization.DeserializeNumber(code)
 	local result = 0
 	for i=#code,1,-1 do
-		result = result * 95 + (string.byte(string.sub(code,i,i)) - 32)
+		result = result * 94 + (string.byte(string.sub(code,i,i)) - 33)
 	end
 	return result
 end
@@ -31,7 +31,7 @@ end
 -- arg/return marshallers for rpcs
 --------------------
 
--- supports values up to 95^length - 1
+-- supports values up to 94^length - 1
 function Serialization.NUMBER(length)
 	return {
 		chars = length,
@@ -52,10 +52,10 @@ function Serialization.SIGNEDNUMBER(length)
 	return {
 		chars = length,
 		Encode = function(marshal, value, code, last)
-			return code .. Serialization.SerializeNumber(value + math.floor(95^length / 2), marshal.chars)
+			return code .. Serialization.SerializeNumber(value + math.floor(94^length / 2), marshal.chars)
 		end,
 		Decode = function(marshal, code, last)
-			return Serialization.DeserializeNumber(string.sub(code, 1, marshal.chars)) - math.floor(95^length / 2), string.sub(code, marshal.chars + 1)
+			return Serialization.DeserializeNumber(string.sub(code, 1, marshal.chars)) - math.floor(94^length / 2), string.sub(code, marshal.chars + 1)
 		end,
 		FixedLength = function(marshal)
 			return true
@@ -82,7 +82,7 @@ end
 Serialization.VARNUM = {
 	Encode = function(marshal, value, code, last)
 		if last then
-			return code .. Serialization.SerializeNumber(value, math.ceil(math.log(value + 1) / math.log(95)))
+			return code .. Serialization.SerializeNumber(value, math.ceil(math.log(value + 1) / math.log(94)))
 		else
 			local result = Serialization.SerializeNumber(value % 47, 1)
 			value = math.floor(value / 47)
