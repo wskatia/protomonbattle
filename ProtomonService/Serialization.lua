@@ -183,6 +183,7 @@ function Serialization.VARARRAY(elementMarshal)
 	return {
 		subMarshal = elementMarshal,
 		Encode = function(marshal, value, code, last)
+			if last and #value == 0 then return code end
 			if not last or not marshal.subMarshal:FixedLength() then
 				code = Serialization.VARNUM:Encode(#value, code, false)
 			end
