@@ -566,6 +566,7 @@ function ProtomonGo:MarkForDeath(parent, label, delay)
 	child.myParent = parent
 	child.myLabel = label
 	child.Die = function(dying)
+		dying.deathTimer:Stop()
 		self.wndView:DestroyPixie(dying.pixieId)
 		dying.myParent[dying.myLabel] = nil
 	end
@@ -614,8 +615,11 @@ function ProtomonGo:UpdateArrow()
 						nOffsets = {0,0,0,0}}
 					})
 
+				if self.nearbyProtomon[nearby[2]] then
+					self.nearbyProtomon[nearby[2]]:Die()
+				end
 				self.nearbyProtomon[nearby[2]] = newProtomon
-				self:MarkForDeath(self.nearbyProtomon, nearby[2], 100)
+				self:MarkForDeath(self.nearbyProtomon, nearby[2], 75)
 			end
 		end,
 		function()
@@ -655,6 +659,7 @@ function ProtomonGo:OnProtomonView()
 		if nearestDist and nearestDist < 5 then
 			ProtomonService:RemoteCall("ProtomonServer", "FindProtomon",
 				function(x)
+					self.nearbyProtomon[nearestId]:Die()
 					if x >= 64 then return end
 					if PointsSpent(x) == PointsSpent(self.mycode[nearest.protomonId]) and PointsSpent(x) > 0 then
 						self.wndConfirm:FindChild("Before"):DestroyChildren()
@@ -702,7 +707,7 @@ function ProtomonGo:UpdateViewer()
 		local distance = math.sqrt((protomon.location.x - myPos.x)^2 +
 			(protomon.location.y - myPos.y)^2 +
 			(protomon.location.z - myPos.z)^2)
-		if distance > 20 then
+		if distance > 50 then
 			self.wndView:UpdatePixie(protomon.pixieId, {
 				strSprite=sprites[protomon.protomonId],
 				loc = {

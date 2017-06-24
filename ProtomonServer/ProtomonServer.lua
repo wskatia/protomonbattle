@@ -1,6 +1,13 @@
 -- piece of decor Protomon Server's housing plot
 local kDecorLo = 23340907
 local kDecorHi = 352321536
+local kAfkPeriod = 60
+local kPersistPeriod = 3600
+
+local kViewRefresh = 60
+local kRespawn = 600
+local kViewDistance = 40
+local kHuntDistance = 100
 
 local ProtomonService
 
@@ -27,8 +34,8 @@ function ProtomonServer:OnLoad()
 	self.protomon = {} -- if game gets popular, we will need a kd-tree eventually
 
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
-	self.afkTimer = ApolloTimer.Create(60, true, "StayAlive", self)  -- avoid afk timeout
-	self.persistTimer = ApolloTimer.Create(3600, true, "Persist", self)  -- save data
+	self.afkTimer = ApolloTimer.Create(kAfkPeriod, true, "StayAlive", self)  -- avoid afk timeout
+	self.persistTimer = ApolloTimer.Create(kPersistPeriod, true, "Persist", self)  -- save data
 end
 
 --------------------
@@ -40,6 +47,7 @@ local function MarkForDeath(parent, label, delay)
 	child.myParent = parent
 	child.myLabel = label
 	child.Die = function(dying)
+		child.deathTimer:Stop()
 		dying.myParent[dying.myLabel] = nil
 	end
 	child.deathTimer = ApolloTimer.Create(delay, false, "Die", child)
@@ -76,8 +84,16 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 	end
 	
 	Print(player .. " " .. worldId .. " " .. zoneId)
-	if not self.protomon[worldId] or not self.protomon[worldId][zoneId] then return 64 end
+	if not self.protomon[worldId] or -- in a valid area?
+		not self.protomon[worldId][zoneId] or -- this protomon exists?
+		not self.protomon[worldId][zoneId].viewers[player] or -- player has seen it before capping?
+		self.protomon[worldId][zoneId].takers[player] then -- player hasn't capped it already?
+		return 64
+	end
 	local protomonId = math.floor(self.protomon[worldId][zoneId].typeLevel / 4)
+	self.protomon[worldId][zoneId].takers[player] = {}
+	MarkForDeath(self.protomon[worldId][zoneId].takers, player, kRespawn)
+	self.protomon[worldId][zoneId].viewers[player]:Die()
 	
 	-- get info about current protomon
 	local code = self.playercodes[player][protomonId]
@@ -189,6 +205,11 @@ function ProtomonServer:AddSpawn(typeLevel, worldId, position)
 end
 
 function ProtomonServer:RadarPulse(playerName, worldId, position)
+	-- register player if doesn't exist
+	if not self.playercodes[playerName] then
+		self:NewPlayer(playerName)
+	end
+
 	local nearbyProtomon = {}
 	local nearestHeading = 64  -- 64 is considered non-existent heading
 	local nearestDist
@@ -197,37 +218,39 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 	-- it won't be an issue before comm limits are though
 	if not self.protomon[worldId] then return 64, {} end
 	for zoneId, protomon in pairs(self.protomon[worldId]) do  -- not ipairs, we skip over the gaps
-		local distance = math.sqrt((position[1] - protomon.location[1])^2 +
-			(position[2] - protomon.location[2])^2 +
-			(position[3] - protomon.location[3])^2)
-		if nearestDist == nil or distance < nearestDist then
-			nearestDist = distance
-			local protomonType = math.floor(protomon.typeLevel / 4)
-			local protomonLevel = protomon.typeLevel % 4 + 1
-			local heading
-			local xDiff = protomon.location[1] - position[1]
-			local zDiff = protomon.location[3] - position[3]
-			if math.abs(zDiff) > math.abs(xDiff) then
-				if zDiff > 0 then heading = 2 else heading = 0 end
-			else
-				if xDiff > 0 then heading = 1 else heading = 3 end
+		if not protomon.takers[playerName] then
+			local distance = math.sqrt((position[1] - protomon.location[1])^2 +
+				(position[2] - protomon.location[2])^2 +
+				(position[3] - protomon.location[3])^2)
+			if nearestDist == nil or distance < nearestDist then
+				nearestDist = distance
+				local protomonType = math.floor(protomon.typeLevel / 4)
+				local protomonLevel = protomon.typeLevel % 4 + 1
+				local heading
+				local xDiff = protomon.location[1] - position[1]
+				local zDiff = protomon.location[3] - position[3]
+				if math.abs(zDiff) > math.abs(xDiff) then
+					if zDiff > 0 then heading = 2 else heading = 0 end
+				else
+					if xDiff > 0 then heading = 1 else heading = 3 end
+				end
+				local isClose
+				if distance < kHuntDistance then isClose = 1 else isClose = 0 end
+				nearestHeading = protomonType * 8 + heading * 2 + isClose
 			end
-			local isClose
-			if distance < 100 then isClose = 1 else isClose = 0 end
-			nearestHeading = protomonType * 8 + heading * 2 + isClose
-		end
-		if distance < 30 and not protomon.viewers[playerName] then
-			table.insert(nearbyProtomon, {
-				protomon.typeLevel,
-				zoneId,
-				{
-					protomon.location[1] - position[1],
-					protomon.location[2] - position[2],
-					protomon.location[3] - position[3],
-				}
-			})
-			protomon.viewers[playerName] = {}
-			MarkForDeath(protomon.viewers, playerName, 100)
+			if distance < kViewDistance and not protomon.viewers[playerName] then
+				table.insert(nearbyProtomon, {
+					protomon.typeLevel,
+					zoneId,
+					{
+						protomon.location[1] - position[1],
+						protomon.location[2] - position[2],
+						protomon.location[3] - position[3],
+					}
+				})
+				protomon.viewers[playerName] = {}
+				MarkForDeath(protomon.viewers, playerName, kViewRefresh)
+			end
 		end
 	end
 	
@@ -320,6 +343,7 @@ function ProtomonServer:OnSave(eLevel)
 		for _, world in pairs(tSave.protomon) do
 			for _, protomon in pairs(world) do
 				protomon.viewers = {}  -- do not save these
+				protomon.takers = {}
 			end
 		end
 		return tSave
