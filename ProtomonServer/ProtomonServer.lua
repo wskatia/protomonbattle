@@ -62,18 +62,22 @@ function ProtomonServer:GetBattleCode(player)
 end
 
 function ProtomonServer:NewPlayer(player)
-	self.playercodes[player] = {0, 64, 0, 0, 64} -- starter team is charenok, stemasaur, squig
+	self.playercodes[player] = {0, 0, 0, 0, 0}
 	self.experience[player] = {0,0,0,0,0}
 	self.skillups[player] = {0,0,0,0,0}
 end
 
 -- Protomon skill changes will favor minor adjustments of current loadout rather than complete randomization
 local costs = {1,1,1,1,2,2}
-function ProtomonServer:FindProtomon(player, protomonId)
+function ProtomonServer:FindProtomon(player, worldId, zoneId)
 	-- register player if doesn't exist
 	if not self.playercodes[player] then
 		self:NewPlayer(player)
 	end
+	
+	Print(player .. " " .. worldId .. " " .. zoneId)
+	if not self.protomon[worldId] or not self.protomon[worldId][zoneId] then return 64 end
+	local protomonId = math.floor(self.protomon[worldId][zoneId].typeLevel / 4)
 	
 	-- get info about current protomon
 	local code = self.playercodes[player][protomonId]
@@ -158,15 +162,15 @@ function ProtomonServer:FindProtomon(player, protomonId)
 	if levelup then
 		self.playercodes[player][protomonId] = newcode
 	else
-		self.prospects[player] = {protomonId, newcode}
+		self.prospects[player] = {zoneId, newcode, protomonId}
 	end
 	return newcode
 end
 
-function ProtomonServer:AcceptProtomon(player, protomonId)
-	if self.prospects[player] and self.prospects[player][1] == protomonId then
+function ProtomonServer:AcceptProtomon(player, zoneId)
+	if self.prospects[player] and self.prospects[player][1] == zoneId then
 		local code = self.prospects[player][2]
-		self.playercodes[player][protomonId] = code
+		self.playercodes[player][self.prospects[player][3]] = code
 		self.prospects[player] = nil
 		return code
 	else
@@ -191,6 +195,7 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 	
 	-- TODO: this loop strong candidate for optimization if we have timeouts later; most likely
 	-- it won't be an issue before comm limits are though
+	if not self.protomon[worldId] then return 64, {} end
 	for zoneId, protomon in pairs(self.protomon[worldId]) do  -- not ipairs, we skip over the gaps
 		local distance = math.sqrt((position[1] - protomon.location[1])^2 +
 			(position[2] - protomon.location[2])^2 +
@@ -253,13 +258,13 @@ function ProtomonServer:ConnectProtomonService()
 				end)
 			
 			ProtomonService:Implement("ProtomonServer", "FindProtomon",
-				function(caller, protomonId)
-					return self:FindProtomon(caller, protomonId)
+				function(caller, worldId, zoneId)
+					return self:FindProtomon(caller, worldId, zoneId)
 				end)
 			
 			ProtomonService:Implement("ProtomonServer", "AcceptProtomon",
-				function(caller, protomonId)
-					return self:AcceptProtomon(caller, protomonId)
+				function(caller, zoneId)
+					return self:AcceptProtomon(caller, zoneId)
 				end)
 
 			ProtomonService:Implement("ProtomonServer", "RadarPulse",

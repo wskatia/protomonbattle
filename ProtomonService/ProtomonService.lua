@@ -52,6 +52,8 @@ ProtomonService.services = {
 			-- called when finding a protomon in open world
 			["FindProtomon"] = {
 				args = {
+					-- for ~400 plots, this hash gives us a ~0.1% collision probability
+					S.NUMBER(4), -- world/housingplot id
 					S.NUMBER(1), -- zone-id of protomon (currently protomon type for testing)
 				},
 				returns = {
@@ -74,7 +76,7 @@ ProtomonService.services = {
 			-- call EnterWorld again, which will refresh those which have not been captured
 			["RadarPulse"] = {
 				args = {
-					S.VARSTRING, -- combination of GetCurrentWorldId()
+					S.NUMBER(4), -- world/housingplot id
 					S.ARRAY(3, S.VARSIGNEDNUM), -- current position
 				},
 				returns = {
@@ -104,7 +106,7 @@ ProtomonService.services = {
 			["AddSpawn"] = {
 				args = {
 					S.NUMBER(1), -- type/level
-					S.VARSTRING, -- combination of GetCurrentWorldId() and hash of plot owner if appropriate
+					S.NUMBER(4), -- world/housingplot id
 					S.ARRAY(3, S.VARSIGNEDNUM), -- position (x,y,z)
 				},
 				returns = {},
@@ -180,6 +182,7 @@ function ProtomonService:HandleRequest(iccomm, strMessage, strSender)
 		resultstring = rpc.returns[i]:Encode(results[i], resultstring, i==#rpc.returns)
 	end
 	if resultstring == "" then resultstring = kReservedChar end -- must send at least one char
+--	Print(serviceName .. ":" .. rpcName .. " sent " .. #resultstring)
 	rpc.responseComm:SendPrivateMessage(strSender, resultstring)
 end
 

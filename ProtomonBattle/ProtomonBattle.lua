@@ -28,7 +28,6 @@ function ProtomonBattle:OnLoad()
 	Apollo.RegisterSlashCommand("start", "OnStart", self)
 	Apollo.RegisterSlashCommand("test", "OnTest", self)
 	Apollo.RegisterSlashCommand("test2", "OnTestTwo", self)
-	Apollo.RegisterSlashCommand("test3", "OnTestThree", self)
 	Apollo.RegisterSlashCommand("stop", "OnStop", self)
 	Apollo.RegisterSlashCommand("do", "OnCommand", self)
 	Apollo.RegisterEventHandler("ChatMessage", "OnChat", self)
@@ -87,26 +86,6 @@ function ProtomonBattle:OnTestTwo(strCmd, strArg)
 			Print("Failed!")
 		end,
 		id, 1)
-end
-
-function ProtomonBattle:OnTestThree(strCmd, strArg)
-	local arguments = {}
-	for arg in string.gmatch(strArg, "%S+") do
-		table.insert(arguments, arg)
-	end
-	
-	local typeLevel = protomonbattle_names[arguments[1]] * 4 + 1
-	local gamePos = GameLib.GetPlayerUnit():GetPosition()
-	local positionArg = {math.floor(gamePos.x), math.floor(gamePos.y)+1, math.floor(gamePos.z)}
-	
-	ProtomonService:RemoteCall("ProtomonServerAdmin", "AddSpawn",
-		function(x)
-			Print("Spawn added!")
-		end,
-		function(x)
-			Print("Failed!")
-		end,
-		typeLevel, "test", positionArg)
 end
 
 --------------------

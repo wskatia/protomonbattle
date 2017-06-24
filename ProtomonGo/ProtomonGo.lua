@@ -12,11 +12,45 @@ local elementColors = {
 	["normal"] = {r = 1, g = 1, b = 1, a = 1},
 }
 
+local sprites = {
+	[1] = "ProtomonSprites:Charenok",
+	[2] = "ProtomonSprites:Vindchu",
+	[3] = "ProtomonSprites:Stemasaur",
+	[4] = "ProtomonSprites:Squig",
+	[5] = "ProtomonSprites:Boulderdude",
+}
+
 local ProtomonService
 
 --------------------
 -- Utility stuff
 --------------------
+
+--hash a string into a number from 1 .. limit
+local function HashString(input, limit)
+	math.randomseed(1)
+	math.random(2) -- not sure why, but first random after a seed is not random
+	
+	local currentHash = math.random(limit)
+	for i = 1, #input do
+		math.randomseed(currentHash * string.byte(string.sub(input, i, i)))
+		math.random(2)
+		currentHash = math.random(limit)
+	end
+	
+	math.randomseed(os.time())
+	math.random(2)
+	return currentHash
+end
+
+local function MyWorldHash()
+	local res = HousingLib.GetResidence()
+	if res then
+		return HashString(res:GetPropertyOwnerName(), 81450624) -- 95^4 - 1, 4 rpc bytes
+	else
+		return GameLib.GetCurrentWorldId()
+	end
+end
 
 -- take any existing children of src and overwrite the corresponding elements of dest
 local function OverwriteTable(src, dest)
@@ -120,12 +154,16 @@ function ProtomonGo:Init()
 end
  
 function ProtomonGo:OnLoad()
+	Apollo.LoadSprites("Protomon.xml", "ProtomonSprites")
+
 	self.xmlDoc = XmlDoc.CreateFromFile("ProtomonGo.xml")
 	self.xmlDoc:RegisterCallback("OnDocLoaded", self)
+
 	Apollo.RegisterSlashCommand("protomongo", "OnProtomonGo", self)
 	Apollo.RegisterSlashCommand("protomonbattle", "OnProtomonBattle", self)
 	Apollo.RegisterSlashCommand("protomontracker", "OnProtomonTrack", self)
 	Apollo.RegisterSlashCommand("protomonreset", "OnProtomonReset", self)
+	Apollo.RegisterSlashCommand("addspawn", "OnAddSpawn", self)
 	Apollo.RegisterSlashCommand("music", "OnMusicStart", self)
 
 	self.protomon = CopyTable(protomonbattle_protomon)
@@ -134,6 +172,27 @@ function ProtomonGo:OnLoad()
 
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
+end
+
+-- testing purposes, get rid of this later
+function ProtomonGo:OnAddSpawn(strCmd, strArg)
+	local arguments = {}
+	for arg in string.gmatch(strArg, "%S+") do
+		table.insert(arguments, arg)
+	end
+	
+	local typeLevel = protomonbattle_names[arguments[1]] * 4 + 1
+	local gamePos = GameLib.GetPlayerUnit():GetPosition()
+	local positionArg = {math.floor(gamePos.x), math.floor(gamePos.y), math.floor(gamePos.z)}
+	
+	ProtomonService:RemoteCall("ProtomonServerAdmin", "AddSpawn",
+		function(x)
+			Print("Spawn added!")
+		end,
+		function(x)
+			Print("Failed!")
+		end,
+		typeLevel, MyWorldHash(), positionArg)
 end
 
 function ProtomonGo:OnDocLoaded()
@@ -178,6 +237,14 @@ function ProtomonGo:OnDocLoaded()
 		end
 		
 	    self.wndConfirm:Show(false, true)
+
+	    self.wndLevel = Apollo.LoadForm(self.xmlDoc, "LevelNotify", nil, self)
+		if self.wndLevel == nil then
+			Apollo.AddAddonErrorText(self, "Could not load the level notification window for some reason.")
+			return
+		end
+		
+	    self.wndLevel:Show(false, true)
 	end
 end
 
@@ -370,12 +437,11 @@ end
 -- Protodex events
 --------------------
 
-function ProtomonGo:OnProtomonGo()
+function ProtomonGo:OnProtomonGo(strCmd, strArg)
 	self.wndGo:Invoke()
 	ProtomonService:RemoteCall("ProtomonServer", "GetMyCode",
 		function(code)
 			self.wndGo:FindChild("Viewer"):DestroyChildren()
-			self.wndGo:FindChild("Find"):SetData(nil)
 			self.protomon = CopyTable(protomonbattle_protomon)
 			local wndList = self.wndGo:FindChild("List")
 			wndList:DestroyChildren()
@@ -439,7 +505,6 @@ function ProtomonGo:OnShowProtomon(wndHandler, wndControl)
 	local toshow = wndHandler:GetData()
 	self.wndGo:FindChild("Viewer"):DestroyChildren()
 	self:MakeCard(self.wndGo:FindChild("Viewer"), toshow.id, toshow.code)
-	self.wndGo:FindChild("Find"):SetData(toshow.id)
 end
 
 function ProtomonGo:RefreshProtodex()
@@ -465,10 +530,18 @@ function ProtomonGo:OnProtomonTrack()
 	self.wndArrow = self.wndCompass:FindChild("Arrow")
 	self.compassTimer = ApolloTimer.Create(0.05, true, "UpdateCompass", self)
 	self:UpdateArrow()
+	ProtomonService:RemoteCall("ProtomonServer", "GetMyCode",
+		function(code)
+			self.mycode = code
+		end,
+		function()
+			Print("Can't contact server.")
+		end)
 end
 
 function ProtomonGo:OnCloseTracker()
 	self.wndTrack:Close()
+	self.wndView:Close()
 	self.compassTimer:Stop()
 	self.arrowTimer:Stop()
 	for _, protomon in pairs(self.nearbyProtomon) do
@@ -493,8 +566,8 @@ function ProtomonGo:MarkForDeath(parent, label, delay)
 	child.myParent = parent
 	child.myLabel = label
 	child.Die = function(dying)
-		dying.myParent[dying.myLabel] = nil
 		self.wndView:DestroyPixie(dying.pixieId)
+		dying.myParent[dying.myLabel] = nil
 	end
 	child.deathTimer = ApolloTimer.Create(delay, false, "Die", child)
 end
@@ -535,8 +608,7 @@ function ProtomonGo:UpdateArrow()
 					},
 				}
 				newProtomon.pixieId = self.wndView:AddPixie({
-					strSprite="zonemap:UI_ZoneMap_RewardProgressEndResultSpinner2",
-					cr = elementColors[protomonbattle_protomon[newProtomon.protomonId].element],
+					strSprite=sprites[protomonId],
 					loc = {
 						fPoints = {0.5,2,0.5,2},
 						nOffsets = {0,0,0,0}}
@@ -551,7 +623,7 @@ function ProtomonGo:UpdateArrow()
 			Print("Could not contact server!")
 			self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
 		end,
-		"test", callingPosition)
+		MyWorldHash(), callingPosition)
 end
 
 --------------------
@@ -564,10 +636,60 @@ function ProtomonGo:OnProtomonView()
 		self.viewTimer = ApolloTimer.Create(0.03, true, "UpdateViewer", self)
 	else
 		self.wndView:Close()
+		
+		local nearest
+		local nearestId
+		local nearestDist
+		local myPos = GameLib.GetPlayerUnit():GetPosition()
+		for zoneId, protomon in pairs(self.nearbyProtomon) do
+			local distance = math.sqrt((protomon.location.x - myPos.x)^2 +
+				(protomon.location.y - myPos.y)^2 +
+				(protomon.location.z - myPos.z)^2)
+			if not nearest or distance < nearestDist then
+				nearestId = zoneId
+				nearest = protomon
+				nearestDist = distance
+			end
+		end
+
+		if nearestDist and nearestDist < 5 then
+			ProtomonService:RemoteCall("ProtomonServer", "FindProtomon",
+				function(x)
+					if x >= 64 then return end
+					if PointsSpent(x) == PointsSpent(self.mycode[nearest.protomonId]) and PointsSpent(x) > 0 then
+						self.wndConfirm:FindChild("Before"):DestroyChildren()
+						self:MakeCard(self.wndConfirm:FindChild("Before"), nearest.protomonId, self.mycode[nearest.protomonId])
+						self.wndConfirm:FindChild("After"):DestroyChildren()
+						self:MakeCard(self.wndConfirm:FindChild("After"), nearest.protomonId, x)
+						self.wndConfirm:FindChild("Accept"):SetData({nearestId, nearest.protomonId})
+						self.wndConfirm:Invoke()
+					else
+						self.wndLevel:FindChild("Before"):DestroyChildren()
+						self:MakeCard(self.wndLevel:FindChild("Before"), nearest.protomonId, self.mycode[nearest.protomonId])
+						self.wndLevel:FindChild("After"):DestroyChildren()
+						self:MakeCard(self.wndLevel:FindChild("After"), nearest.protomonId, x)
+						self.wndLevel:Invoke()
+
+						self.protomon[nearest.protomonId] = CopyTable(protomonbattle_protomon[nearest.protomonId])
+						ApplyCode(self.protomon[nearest.protomonId], x)
+						self.wndGo:FindChild("Viewer"):DestroyChildren()
+						self:MakeCard(self.wndGo:FindChild("Viewer"), nearest.protomonId, x)
+						self.mycode[nearest.protomonId] = x
+						self:RefreshProtodex()
+					end
+				end,
+				function()
+					Print("Couldn't reach server!")
+				end,
+				MyWorldHash(), nearestId)
+		end
 	end
 end
 
 function ProtomonGo:UpdateViewer()
+	if not GameLib.GetPlayerUnit() then
+		self.wndView:Close()
+	end
 	if not self.wndView:IsVisible() then
 		self.viewTimer:Stop()
 		return
@@ -582,8 +704,7 @@ function ProtomonGo:UpdateViewer()
 			(protomon.location.z - myPos.z)^2)
 		if distance > 20 then
 			self.wndView:UpdatePixie(protomon.pixieId, {
-				strSprite="zonemap:UI_ZoneMap_RewardProgressEndResultSpinner2",
-				cr = elementColors[protomonbattle_protomon[protomon.protomonId].element],
+				strSprite=sprites[protomon.protomonId],
 				loc = {
 					fPoints = {0.5,2,0.5,2},
 					nOffsets = {0,0,0,0}}
@@ -595,8 +716,7 @@ function ProtomonGo:UpdateViewer()
 				local adjustedX = ((screenPos.x / screenWidth) - 0.2) / 0.6
 				local adjustedY = ((screenPos.y / screenHeight) - 0.2) / 0.6
 				self.wndView:UpdatePixie(protomon.pixieId, {
-					strSprite="zonemap:UI_ZoneMap_RewardProgressEndResultSpinner2",
-					cr = elementColors[protomonbattle_protomon[protomon.protomonId].element],
+					strSprite=sprites[protomon.protomonId],
 					loc = {
 						fPoints = {adjustedX, adjustedY, adjustedX, adjustedY},
 						nOffsets = {
@@ -608,8 +728,7 @@ function ProtomonGo:UpdateViewer()
 					})
 			else
 				self.wndView:UpdatePixie(protomon.pixieId, {
-					strSprite="zonemap:UI_ZoneMap_RewardProgressEndResultSpinner2",
-					cr = elementColors[protomonbattle_protomon[protomon.protomonId].element],
+					strSprite=sprites[protomon.protomonId],
 					loc = {
 						fPoints = {0.5,2,0.5,2},
 						nOffsets = {0,0,0,0}}
@@ -633,56 +752,33 @@ function ProtomonGo:OnProtomonReset()
 		end)
 end
 
-function ProtomonGo:OnFind(wndHandler, wndControl)
-	local id = wndHandler:GetData()
-	
-	if id then
-		ProtomonService:RemoteCall("ProtomonServer", "FindProtomon",
-			function(x)
-				if PointsSpent(x) == PointsSpent(self.mycode[id]) and PointsSpent(x) > 0 then
-					self.wndConfirm:FindChild("Before"):DestroyChildren()
-					self:MakeCard(self.wndConfirm:FindChild("Before"), id, self.mycode[id])
-					self.wndConfirm:FindChild("After"):DestroyChildren()
-					self:MakeCard(self.wndConfirm:FindChild("After"), id, x)
-					self.wndConfirm:Invoke()
-				else
-					self.protomon[id] = CopyTable(protomonbattle_protomon[id])
-					ApplyCode(self.protomon[id], x)
-					self.wndGo:FindChild("Viewer"):DestroyChildren()
-					self:MakeCard(self.wndGo:FindChild("Viewer"), id, x)
-					self.mycode[id] = x
-					self:RefreshProtodex()
-				end
-			end,
-			function()
-				Print("Couldn't reach server!")
-			end,
-			id)
-	end
-end
-
 function ProtomonGo:OnReject()
 	self.wndConfirm:Close()
 end
 
-function ProtomonGo:OnAccept()
-	local id = self.wndGo:FindChild("Find"):GetData()
+function ProtomonGo:OnAccept(wndHandler, wndControl)
+	local zoneId = wndHandler:GetData()[1]
+	local protomonId = wndHandler:GetData()[2]
 	ProtomonService:RemoteCall("ProtomonServer", "AcceptProtomon",
 		function(x)
 			if x < 64 then
-				self.protomon[id] = CopyTable(protomonbattle_protomon[id])
-				ApplyCode(self.protomon[id], x)
-				self.wndGo:FindChild("Viewer"):DestroyChildren()
-				self:MakeCard(self.wndGo:FindChild("Viewer"), id, x)
-				self.mycode[id] = x
-				self:RefreshProtodex()
+				self.protomon[protomonId] = CopyTable(protomonbattle_protomon[protomonId])
+				ApplyCode(self.protomon[protomonId], x)
+				self.mycode[protomonId] = x
+				Print("Accepted protomon!")
+			else
+				Print("Protomon lost!")
 			end
 		end,
 		function()
 			Print("Couldn't confirm!")
 		end,
-		id)
+		zoneId)
 	self.wndConfirm:Close()
+end
+
+function ProtomonGo:OnDone()
+	self.wndLevel:Close()
 end
 
 local ProtomonGoInst = ProtomonGo:new()
