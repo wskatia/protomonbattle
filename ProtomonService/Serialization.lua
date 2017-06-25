@@ -197,7 +197,7 @@ function Serialization.VARARRAY(elementMarshal)
 			if not last or not marshal.subMarshal:FixedLength() then
 				local length, code = Serialization.VARNUM:Decode(code, false)
 				for i = 1, length do
-					result[i] = marshal.subMarshal:Decode(code, false)
+					result[i], code = marshal.subMarshal:Decode(code, false)
 				end
 			else
 				while code ~= "" do
