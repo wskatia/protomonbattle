@@ -591,6 +591,7 @@ function ProtomonGo:UpdateArrow()
 		function(elementHeadingRange, nearbyProtomon)
 			if elementHeadingRange >= 64 then
 				self.wndCompass:SetOpacity(0)
+				self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
 			else
 				local range = elementHeadingRange % 2
 				local heading = math.floor(elementHeadingRange / 2) % 4
