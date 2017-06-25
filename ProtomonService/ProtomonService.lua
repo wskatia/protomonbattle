@@ -135,12 +135,12 @@ end
 function ProtomonService:OnLoad()
 	for serviceName, service in pairs(self.services) do
 		for rpcName, rpc in pairs(service.rpcs) do
-			local request_channel_name = serviceName .. "_" .. rpcName .. "_Request"
-			local response_channel_name = serviceName .. "_" .. rpcName .. "_Response"
+			local requestChannelName = serviceName .. "_" .. rpcName .. "_Request"
+			local responseChannelName = serviceName .. "_" .. rpcName .. "_Response"
 
 			rpc.ConnectRequest = function(rpc)
 				if not rpc.requestComm then
-					rpc.requestComm = ICCommLib.JoinChannel(request_channel_name, service.channelType);
+					rpc.requestComm = ICCommLib.JoinChannel(requestChannelName, service.channelType)
 					if rpc.requestComm then
 						rpc.requestComm:SetReceivedMessageFunction("HandleRequest", self)
 					end
@@ -151,7 +151,7 @@ function ProtomonService:OnLoad()
 
 			rpc.ConnectResponse = function(rpc)
 				if not rpc.responseComm then
-					rpc.responseComm = ICCommLib.JoinChannel(response_channel_name, service.channelType);
+					rpc.responseComm = ICCommLib.JoinChannel(responseChannelName, service.channelType)
 					if rpc.responseComm then
 						rpc.responseComm:SetReceivedMessageFunction("HandleResponse", self)
 					end

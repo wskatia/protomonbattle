@@ -655,6 +655,7 @@ function ProtomonGo:MarkForDeath(parent, label, delay)
 end
 
 function ProtomonGo:UpdateArrow()
+	if not GameLib.GetPlayerUnit() then return end
 	local position = GameLib.GetPlayerUnit():GetPosition()
 	local callingPosition = {
 		math.floor(position.x),

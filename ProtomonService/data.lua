@@ -572,4 +572,11 @@ protomonbattle_zones = {
 			z = -950,
 		},
 	},
+	[0104548] = { -- Redmoon Terror
+		center = {
+			x = -300,
+			y = 750,
+			z = -200,
+		},
+	},
 }
