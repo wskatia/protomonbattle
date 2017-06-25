@@ -589,31 +589,27 @@ function ProtomonGo:UpdateArrow()
 	}
 	ProtomonService:RemoteCall("ProtomonServer", "RadarPulse",
 		function(elementHeadingRange, nearbyProtomon)
-			if elementHeadingRange >= 64 then
+			if elementHeadingRange[1] == 0 then
 				self.wndCompass:SetOpacity(0)
 				self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
 			else
-				local range = elementHeadingRange % 2
-				local heading = math.floor(elementHeadingRange / 2) % 4
-				local element = math.floor(elementHeadingRange / 8)
-
-				if range == 1 then
+				if elementHeadingRange[3] == 1 then
 					self.wndCompass:SetOpacity(1)
 				else
 					self.wndCompass:SetOpacity(0.3)
 				end
-				self.wndArrow:SetRotation(heading * 90)
-				self.wndArrow:SetBGColor(elementColors[protomonbattle_protomon[element].element])
+				self.wndArrow:SetRotation(elementHeadingRange[2] * 90)
+				self.wndArrow:SetBGColor(elementColors[protomonbattle_protomon[elementHeadingRange[1]].element])
 				self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
 			end
 			for _, nearby in ipairs(nearbyProtomon) do
 				local newProtomon = {
-					protomonId = math.floor(nearby[1] / 4),
-					level = nearby[1] % 4,
+					protomonId = nearby[1][1],
+					level = nearby[1][2],
 					location = {
-						x = nearby[3][1] + callingPosition[1],
-						y = nearby[3][2] + callingPosition[2],
-						z = nearby[3][3] + callingPosition[3],
+						x = nearby[2][1] + callingPosition[1],
+						y = nearby[2][2] + callingPosition[2],
+						z = nearby[2][3] + callingPosition[3],
 					},
 				}
 				newProtomon.pixieId = self.wndView:AddPixie({
@@ -623,11 +619,11 @@ function ProtomonGo:UpdateArrow()
 						nOffsets = {0,0,0,0}}
 					})
 
-				if self.nearbyProtomon[nearby[2]] then
-					self.nearbyProtomon[nearby[2]]:Die()
+				if self.nearbyProtomon[nearby[1][3]] then
+					self.nearbyProtomon[nearby[1][3]]:Die()
 				end
-				self.nearbyProtomon[nearby[2]] = newProtomon
-				self:MarkForDeath(self.nearbyProtomon, nearby[2], 75)
+				self.nearbyProtomon[nearby[1][3]] = newProtomon
+				self:MarkForDeath(self.nearbyProtomon, nearby[1][3], 75)
 			end
 		end,
 		function()
@@ -686,7 +682,7 @@ function ProtomonGo:OnProtomonView()
 						self:MakeCard(self.wndConfirm:FindChild("Before"), nearest.protomonId, self.mycode[nearest.protomonId])
 						self.wndConfirm:FindChild("After"):DestroyChildren()
 						self:MakeCard(self.wndConfirm:FindChild("After"), nearest.protomonId, x)
-						self.wndConfirm:FindChild("Accept"):SetData({nearestId, nearest.protomonId})
+						self.wndConfirm:FindChild("Accept"):SetData(nearest.protomonId)
 						self.wndConfirm:Invoke()
 					else
 						self.wndLevel:FindChild("Before"):DestroyChildren()
@@ -789,8 +785,7 @@ function ProtomonGo:OnReject()
 end
 
 function ProtomonGo:OnAccept(wndHandler, wndControl)
-	local zoneId = wndHandler:GetData()[1]
-	local protomonId = wndHandler:GetData()[2]
+	local protomonId = wndHandler:GetData()
 	ProtomonService:RemoteCall("ProtomonServer", "AcceptProtomon",
 		function(x)
 			if x < 64 then
@@ -805,7 +800,7 @@ function ProtomonGo:OnAccept(wndHandler, wndControl)
 		function()
 			Print("Couldn't confirm!")
 		end,
-		zoneId)
+		protomonId)
 	self.wndConfirm:Close()
 end
 

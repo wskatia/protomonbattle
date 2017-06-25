@@ -31,15 +31,16 @@ end
 -- arg/return marshallers for rpcs
 --------------------
 
--- supports values up to 94^length - 1
-function Serialization.NUMBER(length)
+-- supports values up to 94^length - 1, or 94^length if no-zero
+function Serialization.NUMBER(length, noZero)
 	return {
 		chars = length,
+		offset = noZero and -1 or 0,
 		Encode = function(marshal, value, code, last)
-			return code .. Serialization.SerializeNumber(value, marshal.chars)
+			return code .. Serialization.SerializeNumber(value + marshal.offset, marshal.chars)
 		end,
 		Decode = function(marshal, code, last)
-			return Serialization.DeserializeNumber(string.sub(code, 1, marshal.chars)),
+			return Serialization.DeserializeNumber(string.sub(code, 1, marshal.chars)) - marshal.offset,
 				string.sub(code, marshal.chars + 1)
 		end,
 		FixedLength = function(marshal)
@@ -133,6 +134,46 @@ Serialization.VARSIGNEDNUM = {
 		return false
 	end,
 }
+
+-- specify bits to spend on each number, (true) if zero-skipping
+function Serialization.BITARRAY(...)
+	local result = {
+		size = 0,
+		elements = {},
+		Encode = function(marshal, value, code, last)
+			local total = 0
+			for i = 1, #marshal.elements do
+				if i > 1 then
+					total = total * 2^(marshal.elements[i].bits)
+				end
+				total = total + value[i] + marshal.elements[i].offset
+			end
+			return code .. Serialization.SerializeNumber(total, marshal.size)
+		end,
+		Decode = function(marshal, code, last)
+			local result = {}
+			local total = Serialization.DeserializeNumber(string.sub(code, 1, marshal.size))
+			for i = #marshal.elements, 1, -1 do
+				result[i] = (total % 2^(marshal.elements[i].bits)) - marshal.elements[i].offset
+				total = math.floor(total / 2^(marshal.elements[i].bits))
+			end
+			return result, string.sub(code, marshal.size + 1)
+		end,
+		FixedLength = function(marshal)
+			return true
+		end,
+	}
+	for _, a in ipairs(arg) do
+		if a == true then
+			result.elements[#result.elements].offset = -1
+		else
+			table.insert(result.elements, {bits = a, offset = 0})
+			result.size = result.size + a
+		end
+	end
+	result.size = math.ceil(math.log(2 ^ result.size) / math.log(94))
+	return result
+end
 
 Serialization.VARSTRING = {
 	Encode = function(marshal, value, code, last)

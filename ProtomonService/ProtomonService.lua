@@ -43,28 +43,22 @@ ProtomonService.services = {
 				},
 			},
 
-			-- register new player
-			["JoinProtomon"] = {
-				args = {},
-				returns = {},
-			},
-			
 			-- called when finding a protomon in open world
 			["FindProtomon"] = {
 				args = {
 					-- for ~400 plots, this hash gives us a ~0.1% collision probability
-					S.NUMBER(4), -- world/housingplot id
-					S.NUMBER(1), -- zone-id of protomon (currently protomon type for testing)
+					S.NUMBER(4), -- hash of zone/housing
+					S.VARNUM, -- zone-id of protomon
 				},
 				returns = {
-					S.NUMBER(1), -- code number of prospective skill change, 'absent' if none
+					S.NUMBER(1), -- code number of prospective skill change, 64 if none
 				},
 			},
 			
 			-- called when player wishes to accept prospective skill change
 			["AcceptProtomon"] = {
 				args = {
-					S.NUMBER(1), -- zone-id
+					S.NUMBER(1, true), -- protomon id
 				},
 				returns = {
 					S.NUMBER(1), -- code number of new protomon loadout
@@ -76,14 +70,13 @@ ProtomonService.services = {
 			-- call EnterWorld again, which will refresh those which have not been captured
 			["RadarPulse"] = {
 				args = {
-					S.NUMBER(4), -- world/housingplot id
+					S.NUMBER(4), -- hash of zone/housing
 					S.ARRAY(3, S.VARSIGNEDNUM), -- current position
 				},
 				returns = {
-					S.NUMBER(1), -- element (3 bits), heading (2 bits) & range (1 bits) to nearest protomon
+					S.BITARRAY(3, 2, 1), -- element, heading, range
 					S.VARARRAY(S.TUPLE( -- nearby protomon
-						S.NUMBER(1), -- type (4 bits), level (2 bits)
-						S.VARNUM, -- id (unique within world)
+						S.BITARRAY(5, true, 2, true, 12), -- protomon-id, level, zone-id
 						S.ARRAY(3, S.SIGNEDNUMBER(1)))), -- loc, relative to current position (x,y,z)
 				},
 			},
@@ -106,7 +99,7 @@ ProtomonService.services = {
 			["AddSpawn"] = {
 				args = {
 					S.NUMBER(1), -- type/level
-					S.NUMBER(4), -- world/housingplot id
+					S.NUMBER(4), -- hash of zone/housing
 					S.ARRAY(3, S.VARSIGNEDNUM), -- position (x,y,z)
 				},
 				returns = {},

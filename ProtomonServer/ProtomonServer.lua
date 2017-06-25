@@ -178,15 +178,15 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 	if levelup then
 		self.playercodes[player][protomonId] = newcode
 	else
-		self.prospects[player] = {zoneId, newcode, protomonId}
+		self.prospects[player] = {newcode, protomonId}
 	end
 	return newcode
 end
 
 function ProtomonServer:AcceptProtomon(player, zoneId)
-	if self.prospects[player] and self.prospects[player][1] == zoneId then
-		local code = self.prospects[player][2]
-		self.playercodes[player][self.prospects[player][3]] = code
+	if self.prospects[player] and self.prospects[player][2] == zoneId then
+		local code = self.prospects[player][1]
+		self.playercodes[player][self.prospects[player][2]] = code
 		self.prospects[player] = nil
 		return code
 	else
@@ -211,21 +211,21 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 	end
 
 	local nearbyProtomon = {}
-	local nearestHeading = 64  -- 64 is considered non-existent heading
+	local nearestHeading = {0, 0, 0} -- 0 element means no heading
 	local nearestDist
 	
 	-- TODO: this loop strong candidate for optimization if we have timeouts later; most likely
 	-- it won't be an issue before comm limits are though
 	if not self.protomon[worldId] then return 64, {} end
 	for zoneId, protomon in pairs(self.protomon[worldId]) do  -- not ipairs, we skip over the gaps
+		local protomonType = math.floor(protomon.typeLevel / 4)
+		local protomonLevel = protomon.typeLevel % 4 + 1
 		if not protomon.takers[playerName] then
 			local distance = math.sqrt((position[1] - protomon.location[1])^2 +
 				(position[2] - protomon.location[2])^2 +
 				(position[3] - protomon.location[3])^2)
 			if nearestDist == nil or distance < nearestDist then
 				nearestDist = distance
-				local protomonType = math.floor(protomon.typeLevel / 4)
-				local protomonLevel = protomon.typeLevel % 4 + 1
 				local heading
 				local xDiff = protomon.location[1] - position[1]
 				local zDiff = protomon.location[3] - position[3]
@@ -236,12 +236,15 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 				end
 				local isClose
 				if distance < kHuntDistance then isClose = 1 else isClose = 0 end
-				nearestHeading = protomonType * 8 + heading * 2 + isClose
+				nearestHeading = {protomonType, heading, isClose}
 			end
 			if distance < kViewDistance and not protomon.viewers[playerName] then
 				table.insert(nearbyProtomon, {
-					protomon.typeLevel,
-					zoneId,
+					{
+						protomonType,
+						protomonLevel,
+						zoneId,
+					},
 					{
 						protomon.location[1] - position[1],
 						protomon.location[2] - position[2],
@@ -275,11 +278,6 @@ function ProtomonServer:ConnectProtomonService()
 					return self:GetBattleCode(caller)
 				end)
 
-			ProtomonService:Implement("ProtomonServer", "JoinProtomon",
-				function(caller)
-					self:NewPlayer(caller)
-				end)
-			
 			ProtomonService:Implement("ProtomonServer", "FindProtomon",
 				function(caller, worldId, zoneId)
 					return self:FindProtomon(caller, worldId, zoneId)
