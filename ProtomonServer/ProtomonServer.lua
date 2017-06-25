@@ -90,7 +90,8 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 		self.protomon[worldId][zoneId].takers[player] then -- player hasn't capped it already?
 		return 64
 	end
-	local protomonId = math.floor(self.protomon[worldId][zoneId].typeLevel / 4)
+	local protomonId = self.protomon[worldId][zoneId].protomonId
+	local level = self.protomon[worldId][zoneId].level
 	self.protomon[worldId][zoneId].takers[player] = {}
 	MarkForDeath(self.protomon[worldId][zoneId].takers, player, kRespawn)
 	self.protomon[worldId][zoneId].viewers[player]:Die()
@@ -194,17 +195,27 @@ function ProtomonServer:AcceptProtomon(player, zoneId)
 	end
 end
 
-function ProtomonServer:AddSpawn(typeLevel, worldId, position)
+function ProtomonServer:AddSpawn(protomonId, level, worldId, position)
 	if self.protomon[worldId] == nil then self.protomon[worldId] = {} end
 	local newProtomon = {}
-	newProtomon.typeLevel = typeLevel
-	newProtomon.location = position
+	newProtomon.protomonId = protomonId
+	newProtomon.level = level
+	newProtomon.location = {
+		position[1] / 4 + protomonbattle_zones[worldId].center.x,
+		position[2] / 4 + protomonbattle_zones[worldId].center.y,
+		position[3] / 4 + protomonbattle_zones[worldId].center.z,
+	}
 	newProtomon.viewers = {}
 	newProtomon.takers = {}
 	table.insert(self.protomon[worldId], newProtomon)
 end
 
-function ProtomonServer:RadarPulse(playerName, worldId, position)
+function ProtomonServer:RemoveSpawn(worldId, zoneId)
+	if self.protomon[worldId] == nil then self.protomon[worldId] = {} end
+	self.protomon[worldId][zoneId] = nil
+end
+
+function ProtomonServer:RadarPulse(playerName, worldId, relativePosition)
 	-- register player if doesn't exist
 	if not self.playercodes[playerName] then
 		self:NewPlayer(playerName)
@@ -214,12 +225,18 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 	local nearestHeading = {0, 0, 0} -- 0 element means no heading
 	local nearestDist
 	
+	local position = {
+		relativePosition[1] + protomonbattle_zones[worldId].center.x,
+		relativePosition[2] + protomonbattle_zones[worldId].center.y,
+		relativePosition[3] + protomonbattle_zones[worldId].center.z,
+	}
+
 	-- TODO: this loop strong candidate for optimization if we have timeouts later; most likely
 	-- it won't be an issue before comm limits are though
-	if not self.protomon[worldId] then return 64, {} end
+	if not self.protomon[worldId] then return {0,0,0}, {} end
 	for zoneId, protomon in pairs(self.protomon[worldId]) do  -- not ipairs, we skip over the gaps
-		local protomonType = math.floor(protomon.typeLevel / 4)
-		local protomonLevel = protomon.typeLevel % 4 + 1
+		local protomonId = protomon.protomonId
+		local protomonLevel = protomon.level
 		if not protomon.takers[playerName] then
 			local distance = math.sqrt((position[1] - protomon.location[1])^2 +
 				(position[2] - protomon.location[2])^2 +
@@ -236,19 +253,19 @@ function ProtomonServer:RadarPulse(playerName, worldId, position)
 				end
 				local isClose
 				if distance < kHuntDistance then isClose = 1 else isClose = 0 end
-				nearestHeading = {protomonType, heading, isClose}
+				nearestHeading = {protomonId, heading, isClose}
 			end
 			if distance < kViewDistance and not protomon.viewers[playerName] then
 				table.insert(nearbyProtomon, {
 					{
-						protomonType,
+						protomonId,
 						protomonLevel,
 						zoneId,
 					},
 					{
-						protomon.location[1] - position[1],
-						protomon.location[2] - position[2],
-						protomon.location[3] - position[3],
+						math.floor(protomon.location[1] - position[1]),
+						math.floor(protomon.location[2] - position[2]),
+						math.floor(protomon.location[3] - position[3]),
 					}
 				})
 				protomon.viewers[playerName] = {}
@@ -294,8 +311,13 @@ function ProtomonServer:ConnectProtomonService()
 				end)
 
 			ProtomonService:Implement("ProtomonServerAdmin", "AddSpawn",
-				function(caller, typeLevel, worldId, position)
-					return self:AddSpawn(typeLevel, worldId, position)
+				function(caller, protomonId, level, worldId, position)
+					return self:AddSpawn(protomonId, level, worldId, position)
+				end)
+
+			ProtomonService:Implement("ProtomonServerAdmin", "RemoveSpawn",
+				function(caller, worldId, zoneId)
+					return self:RemoveSpawn(worldId, zoneId)
 				end)
 
 		end
@@ -355,6 +377,15 @@ function ProtomonServer:OnRestore(eLevel, tData)
 		self.experience = tData.experience or {}
 		self.skillups = tData.skillups or {}
 		self.protomon = tData.protomon or {}
+		for _, world in pairs(self.protomon) do
+			for _, protomon in pairs(world) do
+				if protomon.typeLevel then
+					protomon.protomonId = math.floor(protomon.typeLevel / 4)
+					protomon.level = protomon.typeLevel % 4
+					protomon.typeLevel = nil
+				end
+			end
+		end
 	end
 end
 

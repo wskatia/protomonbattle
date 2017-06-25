@@ -46,9 +46,10 @@ end
 local function MyWorldHash()
 	local res = HousingLib.GetResidence()
 	if res then
-		return HashString(res:GetPropertyOwnerName(), 81450624) -- 95^4 - 1, 4 rpc bytes
+		return HashString(res:GetPropertyOwnerName(), 78074895) -- 94^4 - 1, 4 rpc bytes
 	else
-		return GameLib.GetCurrentWorldId()
+		local zone = GameLib.GetCurrentZoneMap()
+		return zone.nWorldId * 1000000 + zone.continentId * 1000 + zone.id
 	end
 end
 
@@ -164,6 +165,7 @@ function ProtomonGo:OnLoad()
 	Apollo.RegisterSlashCommand("protomontracker", "OnProtomonTrack", self)
 	Apollo.RegisterSlashCommand("protomonreset", "OnProtomonReset", self)
 	Apollo.RegisterSlashCommand("addspawn", "OnAddSpawn", self)
+	Apollo.RegisterSlashCommand("removespawn", "OnRemoveSpawn", self)
 	Apollo.RegisterSlashCommand("music", "OnMusicStart", self)
 
 	self.protomon = CopyTable(protomonbattle_protomon)
@@ -180,10 +182,14 @@ function ProtomonGo:OnAddSpawn(strCmd, strArg)
 		table.insert(arguments, arg)
 	end
 	
-	local typeLevel = protomonbattle_names[arguments[1]] * 4 + 1
 	local gamePos = GameLib.GetPlayerUnit():GetPosition()
-	local positionArg = {math.floor(gamePos.x), math.floor(gamePos.y), math.floor(gamePos.z)}
-	
+	local zoneHash = MyWorldHash()
+	local positionArg = {
+		math.floor(4 * (gamePos.x - protomonbattle_zones[zoneHash].center.x)),
+		math.floor(4 * (gamePos.y - protomonbattle_zones[zoneHash].center.y)),
+		math.floor(4 * (gamePos.z - protomonbattle_zones[zoneHash].center.z))
+	}
+
 	ProtomonService:RemoteCall("ProtomonServerAdmin", "AddSpawn",
 		function(x)
 			Print("Spawn added!")
@@ -191,7 +197,33 @@ function ProtomonGo:OnAddSpawn(strCmd, strArg)
 		function(x)
 			Print("Failed!")
 		end,
-		typeLevel, MyWorldHash(), positionArg)
+		protomonbattle_names[arguments[1]], 1, zoneHash, positionArg)
+end
+
+function ProtomonGo:OnRemoveSpawn()
+	local nearestId
+	local nearestDist
+	local myPos = GameLib.GetPlayerUnit():GetPosition()
+	for zoneId, protomon in pairs(self.nearbyProtomon) do
+		local distance = math.sqrt((protomon.location.x - myPos.x)^2 +
+			(protomon.location.y - myPos.y)^2 +
+			(protomon.location.z - myPos.z)^2)
+		if not nearestDist or distance < nearestDist then
+			nearestId = zoneId
+			nearestDist = distance
+		end
+	end
+
+	if nearestDist and nearestDist < 5 then
+		ProtomonService:RemoteCall("ProtomonServerAdmin", "RemoveSpawn",
+			function(x)
+				self.nearbyProtomon[nearestId]:Die()
+			end,
+			function()
+				Print("Couldn't reach server!")
+			end,
+			MyWorldHash(), nearestId)
+	end
 end
 
 function ProtomonGo:OnDocLoaded()
@@ -587,6 +619,12 @@ function ProtomonGo:UpdateArrow()
 		math.floor(position.y),
 		math.floor(position.z),		
 	}
+	local zoneHash = MyWorldHash()
+	local relativePosition = {
+		callingPosition[1] - protomonbattle_zones[zoneHash].center.x,
+		callingPosition[2] - protomonbattle_zones[zoneHash].center.y,
+		callingPosition[3] - protomonbattle_zones[zoneHash].center.z,
+	}
 	ProtomonService:RemoteCall("ProtomonServer", "RadarPulse",
 		function(elementHeadingRange, nearbyProtomon)
 			if elementHeadingRange[1] == 0 then
@@ -631,7 +669,7 @@ function ProtomonGo:UpdateArrow()
 			Print("Could not contact server!")
 			self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
 		end,
-		MyWorldHash(), callingPosition)
+		zoneHash, relativePosition)
 end
 
 --------------------
@@ -650,7 +688,7 @@ function ProtomonGo:OnProtomonView()
 		if self:InFirstPerson() then
 			self.wndView:Invoke()
 			self.viewTimer = ApolloTimer.Create(0.03, true, "UpdateViewer", self)
-			self.closeViewTimer = ApolloTimer.Create(1, true, "CloseViewer", self)
+			self.closeViewTimer = ApolloTimer.Create(0.5, true, "CloseViewer", self)
 		else
 			FloatText("Enter first-person before activating the viewer!")
 		end

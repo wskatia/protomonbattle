@@ -259,14 +259,14 @@ function Serialization.TUPLE(...)
 		subMarshals = arg,
 		Encode = function(marshal, value, code, last)
 			for i = 1, #marshal.subMarshals do
-				code = marshal.subMarshals[i]:Encode(value[i], code, last and i == #subMarshals)
+				code = marshal.subMarshals[i]:Encode(value[i], code, last and i == #marshal.subMarshals)
 			end
 			return code
 		end,
 		Decode = function(marshal, code, last)
 			local result = {}
 			for i = 1, #marshal.subMarshals do
-				result[i], code = marshal.subMarshals[i]:Decode(code, last and i == #subMarshals)
+				result[i], code = marshal.subMarshals[i]:Decode(code, last and i == #marshal.subMarshals)
 			end
 			return result, code
 		end,

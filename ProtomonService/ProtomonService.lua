@@ -71,7 +71,9 @@ ProtomonService.services = {
 			["RadarPulse"] = {
 				args = {
 					S.NUMBER(4), -- hash of zone/housing
-					S.ARRAY(3, S.VARSIGNEDNUM), -- current position
+					S.TUPLE(S.SIGNEDNUMBER(2),  -- current position (x,y,z)
+						S.VARSIGNEDNUM,
+						S.SIGNEDNUMBER(2)),
 				},
 				returns = {
 					S.BITARRAY(3, 2, 1), -- element, heading, range
@@ -98,9 +100,19 @@ ProtomonService.services = {
 			-- create a protomon here
 			["AddSpawn"] = {
 				args = {
-					S.NUMBER(1), -- type/level
+					S.NUMBER(1), -- protomon id
+					S.NUMBER(1), -- level
 					S.NUMBER(4), -- hash of zone/housing
 					S.ARRAY(3, S.VARSIGNEDNUM), -- position (x,y,z)
+				},
+				returns = {},
+			},
+			
+			-- called when finding a protomon in open world
+			["RemoveSpawn"] = {
+				args = {
+					S.NUMBER(4), -- hash of zone/housing
+					S.VARNUM, -- zone-id of protomon
 				},
 				returns = {},
 			},

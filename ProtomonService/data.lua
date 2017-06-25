@@ -514,3 +514,62 @@ protomonbattle_names = {
 	["squig"] = 4,
 	["boulderdude"] = 5,
 }
+
+protomonbattle_zones = {
+	["housing"] = {
+		center = {
+			x = 1485,
+			y = -700,
+			z = 1440,
+		},
+	},
+	[51006005] = { -- celestion
+		center = {
+			x = 2150,
+			y = -900,
+			z = -2350,
+		},
+	},
+	[51006017] = { -- algoroc
+		center = {
+			x = 3650,
+			y = -900,
+			z = -4175,
+		},
+	},
+	[51006014] = { -- thayd
+		center = {
+			x = 3975,
+			y = -900,
+			z = -2100,
+		},
+	},
+	[51006016] = { -- galeras
+		center = {
+			x = 5650,
+			y = -900,
+			z = -2300,
+		},
+	},
+	[22008007] = { -- ellevar
+		center = {
+			x = -2300,
+			y = -900,
+			z = -3500,
+		},
+	},
+	[22008015] = { -- deradune
+		center = {
+			x = -5100,
+			y = -900,
+			z = -3500,
+		},
+	},
+	[22008078] = { -- illium
+		center = {
+			x = -3225,
+			y = -900,
+			z = -950,
+		},
+	},
+}
