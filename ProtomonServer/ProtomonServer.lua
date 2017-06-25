@@ -1,3 +1,5 @@
+local kVersion = 1
+
 -- piece of decor Protomon Server's housing plot
 local kDecorLo = 23340907
 local kDecorHi = 352321536
@@ -6,7 +8,8 @@ local kPersistPeriod = 3600
 
 local kViewRefresh = 60
 local kRespawn = 600
-local kViewDistance = 40
+local kViewDistance = 60
+local kVerticalDistance = 30
 local kHuntDistance = 100
 
 local ProtomonService
@@ -200,11 +203,19 @@ function ProtomonServer:AddSpawn(protomonId, level, worldId, position)
 	local newProtomon = {}
 	newProtomon.protomonId = protomonId
 	newProtomon.level = level
-	newProtomon.location = {
-		position[1] / 4 + protomonbattle_zones[worldId].center.x,
-		position[2] / 4 + protomonbattle_zones[worldId].center.y,
-		position[3] / 4 + protomonbattle_zones[worldId].center.z,
-	}
+	if protomonbattle_zones[worldId] then
+		newProtomon.location = {
+			position[1] / 4 + protomonbattle_zones[worldId].center.x,
+			position[2] / 4 + protomonbattle_zones[worldId].center.y,
+			position[3] / 4 + protomonbattle_zones[worldId].center.z,
+		}
+	else
+		newProtomon.location = {
+			position[1] / 4 + protomonbattle_zones["housing"].center.x,
+			position[2] / 4 + protomonbattle_zones["housing"].center.y,
+			position[3] / 4 + protomonbattle_zones["housing"].center.z,
+		}
+	end
 	newProtomon.viewers = {}
 	newProtomon.takers = {}
 	table.insert(self.protomon[worldId], newProtomon)
@@ -225,11 +236,20 @@ function ProtomonServer:RadarPulse(playerName, worldId, relativePosition)
 	local nearestHeading = {0, 0, 0} -- 0 element means no heading
 	local nearestDist
 	
-	local position = {
-		relativePosition[1] + protomonbattle_zones[worldId].center.x,
-		relativePosition[2] + protomonbattle_zones[worldId].center.y,
-		relativePosition[3] + protomonbattle_zones[worldId].center.z,
-	}
+	local position
+	if protomonbattle_zones[worldId] then
+		position = {
+			relativePosition[1] + protomonbattle_zones[worldId].center.x,
+			relativePosition[2] + protomonbattle_zones[worldId].center.y,
+			relativePosition[3] + protomonbattle_zones[worldId].center.z,
+		}
+	else
+		position = {
+			relativePosition[1] + protomonbattle_zones["housing"].center.x,
+			relativePosition[2] + protomonbattle_zones["housing"].center.y,
+			relativePosition[3] + protomonbattle_zones["housing"].center.z,
+		}
+	end
 
 	-- TODO: this loop strong candidate for optimization if we have timeouts later; most likely
 	-- it won't be an issue before comm limits are though
@@ -255,7 +275,9 @@ function ProtomonServer:RadarPulse(playerName, worldId, relativePosition)
 				if distance < kHuntDistance then isClose = 1 else isClose = 0 end
 				nearestHeading = {protomonId, heading, isClose}
 			end
-			if distance < kViewDistance and not protomon.viewers[playerName] then
+			if distance < kViewDistance and 
+				math.abs(protomon.location[2] - position[2]) < kVerticalDistance and
+				not protomon.viewers[playerName] then
 				table.insert(nearbyProtomon, {
 					{
 						protomonId,
@@ -263,9 +285,9 @@ function ProtomonServer:RadarPulse(playerName, worldId, relativePosition)
 						zoneId,
 					},
 					{
-						math.floor(protomon.location[1] - position[1]),
-						math.floor(protomon.location[2] - position[2]),
-						math.floor(protomon.location[3] - position[3]),
+						math.floor(4*(protomon.location[1] - position[1]) + 256),
+						math.floor(4*(protomon.location[2] - position[2]) + 128),
+						math.floor(4*(protomon.location[3] - position[3]) + 256),
 					}
 				})
 				protomon.viewers[playerName] = {}
@@ -285,6 +307,11 @@ function ProtomonServer:ConnectProtomonService()
 	if not ProtomonService then
 		ProtomonService = Apollo.GetAddon("ProtomonService")
 		if ProtomonService then
+			ProtomonService:Implement("ProtomonServer", "GetVersion",
+				function(caller)
+					return kVersion
+				end)
+
 			ProtomonService:Implement("ProtomonServer", "GetBattleCodes",
 				function(caller, player1, player2)
 					return self:GetBattleCode(player1), self:GetBattleCode(player2)

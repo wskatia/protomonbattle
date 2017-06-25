@@ -3,6 +3,8 @@ require "ICCommLib"
 require "ICComm"
 require "Sound"
 
+local kVersion = 1
+
 local elementColors = {
 	["fire"] = {r = 1, g = 0, b = 0, a = 1},
 	["air"] = {r = 1, g = 1, b = 1, a = 0.7},
@@ -153,7 +155,7 @@ end
 function ProtomonGo:Init()
     Apollo.RegisterAddon(self, false, "", {})
 end
- 
+
 function ProtomonGo:OnLoad()
 	Apollo.LoadSprites("Protomon.xml", "ProtomonSprites")
 
@@ -163,10 +165,8 @@ function ProtomonGo:OnLoad()
 	Apollo.RegisterSlashCommand("protomongo", "OnProtomonGo", self)
 	Apollo.RegisterSlashCommand("protomonbattle", "OnProtomonBattle", self)
 	Apollo.RegisterSlashCommand("protomontracker", "OnProtomonTrack", self)
-	Apollo.RegisterSlashCommand("protomonreset", "OnProtomonReset", self)
 	Apollo.RegisterSlashCommand("addspawn", "OnAddSpawn", self)
 	Apollo.RegisterSlashCommand("removespawn", "OnRemoveSpawn", self)
-	Apollo.RegisterSlashCommand("music", "OnMusicStart", self)
 
 	self.protomon = CopyTable(protomonbattle_protomon)
 	self.playingmusic = false
@@ -174,6 +174,7 @@ function ProtomonGo:OnLoad()
 
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
+	self.getVersionTimer = ApolloTimer.Create(6, true, "GetVersion", self)
 end
 
 function ProtomonGo:OnAddSpawn(strCmd, strArg)
@@ -184,11 +185,24 @@ function ProtomonGo:OnAddSpawn(strCmd, strArg)
 	
 	local gamePos = GameLib.GetPlayerUnit():GetPosition()
 	local zoneHash = MyWorldHash()
-	local positionArg = {
-		math.floor(4 * (gamePos.x - protomonbattle_zones[zoneHash].center.x)),
-		math.floor(4 * (gamePos.y - protomonbattle_zones[zoneHash].center.y)),
-		math.floor(4 * (gamePos.z - protomonbattle_zones[zoneHash].center.z))
-	}
+	local positionArg
+	if protomonbattle_zones[zoneHash] then
+		positionArg = {
+			math.floor(4 * (gamePos.x - protomonbattle_zones[zoneHash].center.x)),
+			math.floor(4 * (gamePos.y - protomonbattle_zones[zoneHash].center.y)),
+			math.floor(4 * (gamePos.z - protomonbattle_zones[zoneHash].center.z))
+		}
+	else
+		if not HousingLib.GetResidence() then
+			FloatText("This zone is not yet supported!")
+			return
+		end
+		positionArg = {
+			math.floor(4 * (gamePos.x - protomonbattle_zones["housing"].center.x)),
+			math.floor(4 * (gamePos.y - protomonbattle_zones["housing"].center.y)),
+			math.floor(4 * (gamePos.z - protomonbattle_zones["housing"].center.z))
+		}
+	end
 
 	ProtomonService:RemoteCall("ProtomonServerAdmin", "AddSpawn",
 		function(x)
@@ -197,7 +211,7 @@ function ProtomonGo:OnAddSpawn(strCmd, strArg)
 		function(x)
 			Print("Failed!")
 		end,
-		protomonbattle_names[arguments[1]], 1, zoneHash, positionArg)
+		protomonbattle_names[arguments[1]], tonumber(arguments[2]), zoneHash, positionArg)
 end
 
 function ProtomonGo:OnRemoveSpawn()
@@ -310,13 +324,20 @@ function ProtomonGo:ConnectBattle()
 	end
 end
 
+function ProtomonGo:GetVersion()
+	if ProtomonService then
+		ProtomonService:RemoteCall("ProtomonServer", "GetVersion",
+			function(version)
+				self.serverVersion = version
+				self.getVersionTimer:Stop()
+			end,
+			function() end)
+	end
+end
+
 --------------------
 -- Battle music control (thx Smooth McGroove!)
 --------------------
-
-function ProtomonGo:OnMusicStart()
-	self:PlayStart()
-end
 
 function ProtomonGo:PlayStart()
 	if not self.playingmusic then
@@ -342,6 +363,13 @@ end
 --------------------
 
 function ProtomonGo:OnProtomonBattle()
+	if not self.serverVersion then
+		Print("Could not connect to protomon server.")
+		return
+	elseif self.serverVersion > kVersion then
+		Print("Protomon addon needs to be updated!")
+		return
+	end
 	self.wndBattle:Invoke()
 end
 
@@ -477,6 +505,13 @@ end
 --------------------
 
 function ProtomonGo:OnProtomonGo(strCmd, strArg)
+	if not self.serverVersion then
+		Print("Could not connect to protomon server.")
+		return
+	elseif self.serverVersion > kVersion then
+		Print("Protomon addon needs to be updated!")
+		return
+	end
 	self.wndGo:Invoke()
 	ProtomonService:RemoteCall("ProtomonServer", "GetMyCode",
 		function(code)
@@ -564,6 +599,13 @@ end
 --------------------
 
 function ProtomonGo:OnProtomonTrack()
+	if not self.serverVersion then
+		Print("Could not connect to protomon server.")
+		return
+	elseif self.serverVersion > kVersion then
+		Print("Protomon addon needs to be updated!")
+		return
+	end
 	self.wndTrack:Invoke()
 	self.wndCompass = self.wndTrack:FindChild("Compass")
 	self.wndArrow = self.wndCompass:FindChild("Arrow")
@@ -620,11 +662,20 @@ function ProtomonGo:UpdateArrow()
 		math.floor(position.z),		
 	}
 	local zoneHash = MyWorldHash()
-	local relativePosition = {
-		callingPosition[1] - protomonbattle_zones[zoneHash].center.x,
-		callingPosition[2] - protomonbattle_zones[zoneHash].center.y,
-		callingPosition[3] - protomonbattle_zones[zoneHash].center.z,
-	}
+	local relativePosition
+	if protomonbattle_zones[zoneHash] then
+		relativePosition = {
+			callingPosition[1] - protomonbattle_zones[zoneHash].center.x,
+			callingPosition[2] - protomonbattle_zones[zoneHash].center.y,
+			callingPosition[3] - protomonbattle_zones[zoneHash].center.z,
+		}
+	else
+		relativePosition = {
+			callingPosition[1] - protomonbattle_zones["housing"].center.x,
+			callingPosition[2] - protomonbattle_zones["housing"].center.y,
+			callingPosition[3] - protomonbattle_zones["housing"].center.z,
+		}
+	end
 	ProtomonService:RemoteCall("ProtomonServer", "RadarPulse",
 		function(elementHeadingRange, nearbyProtomon)
 			if elementHeadingRange[1] == 0 then
@@ -645,9 +696,9 @@ function ProtomonGo:UpdateArrow()
 					protomonId = nearby[1][1],
 					level = nearby[1][2],
 					location = {
-						x = nearby[2][1] + callingPosition[1],
-						y = nearby[2][2] + callingPosition[2],
-						z = nearby[2][3] + callingPosition[3],
+						x = (nearby[2][1] - 256) / 4 + callingPosition[1],
+						y = (nearby[2][2] - 128) / 4 + callingPosition[2],
+						z = (nearby[2][3] - 256) / 4 + callingPosition[3],
 					},
 				}
 				newProtomon.pixieId = self.wndView:AddPixie({
@@ -807,16 +858,6 @@ end
 --------------------
 -- Protomon levelling (subject to a lot of change once geo stuff is in)
 --------------------
-
-function ProtomonGo:OnProtomonReset()
-	ProtomonService:RemoteCall("ProtomonServer", "JoinProtomon",
-		function()
-			Print("Reset to starter protomon!")
-		end,
-		function()
-			Print("Could not contact server!")
-		end)
-end
 
 function ProtomonGo:OnReject()
 	self.wndConfirm:Close()

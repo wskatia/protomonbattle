@@ -23,6 +23,13 @@ ProtomonService.services = {
 		host = "Protomon Server",
 		channelType = ICCommLib.CodeEnumICCommChannelType.Global,
 		rpcs = {
+			["GetVersion"] = {
+				args = {},
+				returns = {
+					S.VARNUM,
+				},
+			},
+
 			-- pass two character names, receive their protomon codes
 			["GetBattleCodes"] = {
 				args = {
@@ -39,7 +46,7 @@ ProtomonService.services = {
 			["GetMyCode"] = {
 				args = {},
 				returns = {
-					S.ARRAY(5, S.NUMBER(1)), -- protomon codes for player 1
+					S.ARRAY(5, S.NUMBER(1)), -- protomon codes for caller
 				},
 			},
 
@@ -72,14 +79,14 @@ ProtomonService.services = {
 				args = {
 					S.NUMBER(4), -- hash of zone/housing
 					S.TUPLE(S.SIGNEDNUMBER(2),  -- current position (x,y,z)
-						S.VARSIGNEDNUM,
+						S.VARSIGNEDNUM,  -- y-coord stands a reasonable chance of being 1 byte often
 						S.SIGNEDNUMBER(2)),
 				},
 				returns = {
 					S.BITARRAY(3, 2, 1), -- element, heading, range
 					S.VARARRAY(S.TUPLE( -- nearby protomon
 						S.BITARRAY(5, true, 2, true, 12), -- protomon-id, level, zone-id
-						S.ARRAY(3, S.SIGNEDNUMBER(1)))), -- loc, relative to current position (x,y,z)
+						S.BITARRAY(9,8,9))), -- loc, relative to current position (x,y,z)
 				},
 			},
 		},
