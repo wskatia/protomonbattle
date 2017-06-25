@@ -1,5 +1,6 @@
 require "ICCommLib"
 require "ICComm"
+require "GuildLib"
 local S = Apollo.GetPackage("Module:Serialization-1.0").tPackage
 
 local kTimeout = 5
@@ -93,7 +94,8 @@ ProtomonService.services = {
 	},
 	["ProtomonServerAdmin"] = {
 		host = "Protomon Server",
-		channelType = ICCommLib.CodeEnumICCommChannelType.Global, -- make this guild later
+		channelType = ICCommLib.CodeEnumICCommChannelType.Guild, -- make this guild later
+		guildName = "Protomon Administrators",
 		rpcs = {
 			-- assign protomon team
 			["SetTeam"] = {
@@ -133,41 +135,49 @@ local function pack(...)
 end
 
 function ProtomonService:OnLoad()
+	local guilds = {}
+	for _, guild in pairs(GuildLib.GetGuilds()) do
+		guilds[guild:GetName()] = guild
+	end
+	
 	for serviceName, service in pairs(self.services) do
-		for rpcName, rpc in pairs(service.rpcs) do
-			local requestChannelName = serviceName .. "_" .. rpcName .. "_Request"
-			local responseChannelName = serviceName .. "_" .. rpcName .. "_Response"
+		if service.guildName == nil or guilds[service.guildName] ~= nil then
+			local guild = guilds[service.guildName]
+			for rpcName, rpc in pairs(service.rpcs) do
+				local requestChannelName = serviceName .. "_" .. rpcName .. "_Request"
+				local responseChannelName = serviceName .. "_" .. rpcName .. "_Response"
 
-			rpc.ConnectRequest = function(rpc)
-				if not rpc.requestComm then
-					rpc.requestComm = ICCommLib.JoinChannel(requestChannelName, service.channelType)
-					if rpc.requestComm then
-						rpc.requestComm:SetReceivedMessageFunction("HandleRequest", self)
+				rpc.ConnectRequest = function(rpc)
+					if not rpc.requestComm then
+						rpc.requestComm = ICCommLib.JoinChannel(requestChannelName, service.channelType, guild)
+						if rpc.requestComm then
+							rpc.requestComm:SetReceivedMessageFunction("HandleRequest", self)
+						end
+					else
+						rpc.requestConnectTimer:Stop()
 					end
-				else
-					rpc.requestConnectTimer:Stop()
 				end
-			end
 
-			rpc.ConnectResponse = function(rpc)
-				if not rpc.responseComm then
-					rpc.responseComm = ICCommLib.JoinChannel(responseChannelName, service.channelType)
-					if rpc.responseComm then
-						rpc.responseComm:SetReceivedMessageFunction("HandleResponse", self)
+				rpc.ConnectResponse = function(rpc)
+					if not rpc.responseComm then
+						rpc.responseComm = ICCommLib.JoinChannel(responseChannelName, service.channelType, guild)
+						if rpc.responseComm then
+							rpc.responseComm:SetReceivedMessageFunction("HandleResponse", self)
+						end
+					else
+						rpc.responseConnectTimer:Stop()
 					end
-				else
-					rpc.responseConnectTimer:Stop()
 				end
-			end
 
-			rpc.HandleTimeout = function(rpc)
-				rpc.pendingCallFailer()
-				rpc.pendingCallFailer = nil
-				rpc.pendingCallHandler = nil
+				rpc.HandleTimeout = function(rpc)
+					rpc.pendingCallFailer()
+					rpc.pendingCallFailer = nil
+					rpc.pendingCallHandler = nil
+				end
+				
+				rpc.requestConnectTimer = ApolloTimer.Create(1, true, "ConnectRequest", rpc)
+				rpc.responseConnectTimer = ApolloTimer.Create(1, true, "ConnectResponse", rpc)
 			end
-			
-			rpc.requestConnectTimer = ApolloTimer.Create(1, true, "ConnectRequest", rpc)
-			rpc.responseConnectTimer = ApolloTimer.Create(1, true, "ConnectResponse", rpc)
 		end
 	end
 end

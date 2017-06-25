@@ -35,7 +35,7 @@ local function HashString(input, limit)
 	
 	local currentHash = math.random(limit)
 	for i = 1, #input do
-		math.randomseed(currentHash * string.byte(string.sub(input, i, i)))
+		math.randomseed(currentHash + string.byte(string.sub(input, i, i)))
 		math.random(2)
 		currentHash = math.random(limit)
 	end
