@@ -299,6 +299,14 @@ function ProtomonServer:RadarPulse(playerName, worldId, relativePosition)
 	return nearestHeading, nearbyProtomon
 end
 
+function ProtomonServer:GetZoneInfo(worldId)
+	local stats = {{0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0}}
+	for _, spawn in pairs(self.protomon[worldId]) do
+		stats[spawn.protomonId][spawn.level] = stats[spawn.protomonId][spawn.level] + 1
+	end
+	return stats
+end
+
 --------------------
 -- Startup connections
 --------------------
@@ -337,6 +345,22 @@ function ProtomonServer:ConnectProtomonService()
 					return self:RadarPulse(caller, worldId, position)
 				end)
 
+			ProtomonService:Implement("ProtomonServerAdmin", "SetTeam",
+				function(caller, player, code)
+					if not self.playercodes[player] then
+						self:NewPlayer(player)
+					end
+					self.playercodes[player] = code
+				end)
+
+			ProtomonService:Implement("ProtomonServerAdmin", "SetProtomon",
+				function(caller, player, protomonId, code)
+					if not self.playercodes[player] then
+						self:NewPlayer(player)
+					end
+					self.playercodes[player][protomonId] = code
+				end)
+
 			ProtomonService:Implement("ProtomonServerAdmin", "AddSpawn",
 				function(caller, protomonId, level, worldId, position)
 					return self:AddSpawn(protomonId, level, worldId, position)
@@ -345,6 +369,11 @@ function ProtomonServer:ConnectProtomonService()
 			ProtomonService:Implement("ProtomonServerAdmin", "RemoveSpawn",
 				function(caller, worldId, zoneId)
 					return self:RemoveSpawn(worldId, zoneId)
+				end)
+
+			ProtomonService:Implement("ProtomonServerAdmin", "GetZoneInfo",
+				function(caller, worldId)
+					return self:GetZoneInfo(worldId)
 				end)
 
 		end

@@ -106,6 +106,16 @@ ProtomonService.services = {
 				returns = {},
 			},
 			
+			-- assign specific protomon
+			["SetProtomon"] = {
+				args = {
+					S.VARSTRING, -- player name to modify
+					S.NUMBER(1), -- protomon id
+					S.NUMBER(1), -- new code
+				},
+				returns = {},
+			},
+			
 			-- create a protomon here
 			["AddSpawn"] = {
 				args = {
@@ -124,6 +134,16 @@ ProtomonService.services = {
 					S.VARNUM, -- zone-id of protomon
 				},
 				returns = {},
+			},
+			
+			-- get protomon spawn stats for current zone
+			["GetZoneInfo"] = {
+				args = {
+					S.NUMBER(4), -- hash of zone/housing
+				},
+				returns = {
+					S.ARRAY(5, S.ARRAY(3, S.VARNUM)) -- For each protomon id, spawn counts per level
+				},
 			},
 			
 		},

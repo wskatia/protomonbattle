@@ -167,6 +167,7 @@ function ProtomonGo:OnLoad()
 	Apollo.RegisterSlashCommand("protomontracker", "OnProtomonTrack", self)
 	Apollo.RegisterSlashCommand("addspawn", "OnAddSpawn", self)
 	Apollo.RegisterSlashCommand("removespawn", "OnRemoveSpawn", self)
+	Apollo.RegisterSlashCommand("getzoneinfo", "OnGetZoneInfo", self)
 
 	self.protomon = CopyTable(protomonbattle_protomon)
 	self.playingmusic = false
@@ -175,69 +176,6 @@ function ProtomonGo:OnLoad()
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
 	self.getVersionTimer = ApolloTimer.Create(6, true, "GetVersion", self)
-end
-
-function ProtomonGo:OnAddSpawn(strCmd, strArg)
-	local arguments = {}
-	for arg in string.gmatch(strArg, "%S+") do
-		table.insert(arguments, arg)
-	end
-	
-	local gamePos = GameLib.GetPlayerUnit():GetPosition()
-	local zoneHash = MyWorldHash()
-	local positionArg
-	if protomonbattle_zones[zoneHash] then
-		positionArg = {
-			math.floor(4 * (gamePos.x - protomonbattle_zones[zoneHash].center.x)),
-			math.floor(4 * (gamePos.y - protomonbattle_zones[zoneHash].center.y)),
-			math.floor(4 * (gamePos.z - protomonbattle_zones[zoneHash].center.z))
-		}
-	else
-		if not HousingLib.GetResidence() then
-			FloatText("This zone is not yet supported!")
-			return
-		end
-		positionArg = {
-			math.floor(4 * (gamePos.x - protomonbattle_zones["housing"].center.x)),
-			math.floor(4 * (gamePos.y - protomonbattle_zones["housing"].center.y)),
-			math.floor(4 * (gamePos.z - protomonbattle_zones["housing"].center.z))
-		}
-	end
-
-	ProtomonService:RemoteCall("ProtomonServerAdmin", "AddSpawn",
-		function(x)
-			Print("Spawn added!")
-		end,
-		function(x)
-			Print("Failed!")
-		end,
-		protomonbattle_names[arguments[1]], tonumber(arguments[2]), zoneHash, positionArg)
-end
-
-function ProtomonGo:OnRemoveSpawn()
-	local nearestId
-	local nearestDist
-	local myPos = GameLib.GetPlayerUnit():GetPosition()
-	for zoneId, protomon in pairs(self.nearbyProtomon) do
-		local distance = math.sqrt((protomon.location.x - myPos.x)^2 +
-			(protomon.location.y - myPos.y)^2 +
-			(protomon.location.z - myPos.z)^2)
-		if not nearestDist or distance < nearestDist then
-			nearestId = zoneId
-			nearestDist = distance
-		end
-	end
-
-	if nearestDist and nearestDist < 5 then
-		ProtomonService:RemoteCall("ProtomonServerAdmin", "RemoveSpawn",
-			function(x)
-				self.nearbyProtomon[nearestId]:Die()
-			end,
-			function()
-				Print("Couldn't reach server!")
-			end,
-			MyWorldHash(), nearestId)
-	end
 end
 
 function ProtomonGo:OnDocLoaded()
@@ -341,7 +279,9 @@ end
 
 function ProtomonGo:PlayStart()
 	if not self.playingmusic then
-		Sound.PlayFile("battlestart.wav")
+		if not self.wndBattle:FindChild("Mute"):IsChecked() then
+			Sound.PlayFile("battlestart.wav")
+		end
 		self.musictimer = ApolloTimer.Create(7.82, false, "PlayLoop", self)
 	end
 	self.playingmusic = true
@@ -350,10 +290,14 @@ end
 
 function ProtomonGo:PlayLoop()
 	if self.endingmusic then
-		Sound.PlayFile("battleend.wav")
+		if not self.wndBattle:FindChild("Mute"):IsChecked() then
+			Sound.PlayFile("battleend.wav")
+		end
 		self.playingmusic = false
 	else
-		Sound.PlayFile("battleloop.wav")
+		if not self.wndBattle:FindChild("Mute"):IsChecked() then
+			Sound.PlayFile("battleloop.wav")
+		end
 		self.musictimer = ApolloTimer.Create(39.41, false, "PlayLoop", self)
 	end
 end	
@@ -704,6 +648,10 @@ function ProtomonGo:UpdateArrow()
 				}
 				newProtomon.pixieId = self.wndView:AddPixie({
 					strSprite=sprites[protomonId],
+					flagsText = {
+						DT_RIGHT = true,
+					},
+					strText = tostring(nearby[1][2]),
 					loc = {
 						fPoints = {0.5,2,0.5,2},
 						nOffsets = {0,0,0,0}}
@@ -823,6 +771,10 @@ function ProtomonGo:UpdateViewer()
 		if distance > 50 then
 			self.wndView:UpdatePixie(protomon.pixieId, {
 				strSprite=sprites[protomon.protomonId],
+				flagsText = {
+					DT_RIGHT = true,
+				},
+				strText = tostring(protomon.level),
 				loc = {
 					fPoints = {0.5,2,0.5,2},
 					nOffsets = {0,0,0,0}}
@@ -835,6 +787,10 @@ function ProtomonGo:UpdateViewer()
 				local adjustedY = ((screenPos.y / screenHeight) - 0.2) / 0.6
 				self.wndView:UpdatePixie(protomon.pixieId, {
 					strSprite=sprites[protomon.protomonId],
+					flagsText = {
+						DT_RIGHT = true,
+					},
+					strText = tostring(protomon.level),
 					loc = {
 						fPoints = {adjustedX, adjustedY, adjustedX, adjustedY},
 						nOffsets = {
@@ -847,6 +803,10 @@ function ProtomonGo:UpdateViewer()
 			else
 				self.wndView:UpdatePixie(protomon.pixieId, {
 					strSprite=sprites[protomon.protomonId],
+					flagsText = {
+						DT_RIGHT = true,
+					},
+					strText = tostring(protomon.level),
 					loc = {
 						fPoints = {0.5,2,0.5,2},
 						nOffsets = {0,0,0,0}}
@@ -886,6 +846,92 @@ end
 
 function ProtomonGo:OnDone()
 	self.wndLevel:Close()
+end
+
+--------------------
+-- Admin functions (will not work if you are not in Protomon Administrators circle)
+--------------------
+
+function ProtomonGo:OnAddSpawn(strCmd, strArg)
+	local arguments = {}
+	for arg in string.gmatch(strArg, "%S+") do
+		table.insert(arguments, arg)
+	end
+	
+	local gamePos = GameLib.GetPlayerUnit():GetPosition()
+	local zoneHash = MyWorldHash()
+	local positionArg
+	if protomonbattle_zones[zoneHash] then
+		positionArg = {
+			math.floor(4 * (gamePos.x - protomonbattle_zones[zoneHash].center.x)),
+			math.floor(4 * (gamePos.y - protomonbattle_zones[zoneHash].center.y)),
+			math.floor(4 * (gamePos.z - protomonbattle_zones[zoneHash].center.z))
+		}
+	else
+		if not HousingLib.GetResidence() then
+			FloatText("This zone is not yet supported!")
+			return
+		end
+		positionArg = {
+			math.floor(4 * (gamePos.x - protomonbattle_zones["housing"].center.x)),
+			math.floor(4 * (gamePos.y - protomonbattle_zones["housing"].center.y)),
+			math.floor(4 * (gamePos.z - protomonbattle_zones["housing"].center.z))
+		}
+	end
+
+	ProtomonService:RemoteCall("ProtomonServerAdmin", "AddSpawn",
+		function(x)
+			Print("Spawn added!")
+		end,
+		function(x)
+			Print("Failed!")
+		end,
+		protomonbattle_names[arguments[1]], tonumber(arguments[2]), zoneHash, positionArg)
+end
+
+function ProtomonGo:OnRemoveSpawn()
+	local nearestId
+	local nearestDist
+	local myPos = GameLib.GetPlayerUnit():GetPosition()
+	for zoneId, protomon in pairs(self.nearbyProtomon) do
+		local distance = math.sqrt((protomon.location.x - myPos.x)^2 +
+			(protomon.location.y - myPos.y)^2 +
+			(protomon.location.z - myPos.z)^2)
+		if not nearestDist or distance < nearestDist then
+			nearestId = zoneId
+			nearestDist = distance
+		end
+	end
+
+	if nearestDist and nearestDist < 5 then
+		ProtomonService:RemoteCall("ProtomonServerAdmin", "RemoveSpawn",
+			function(x)
+				self.nearbyProtomon[nearestId]:Die()
+			end,
+			function()
+				Print("Couldn't reach server!")
+			end,
+			MyWorldHash(), nearestId)
+	end
+end
+
+function ProtomonGo:OnGetZoneInfo()
+	ProtomonService:RemoteCall("ProtomonServerAdmin", "GetZoneInfo",
+		function(stats)
+			local total = 0
+			for protomonId, levelStats in ipairs(stats) do
+				Print(protomonbattle_protomon[protomonId].name ..
+					"   1-" .. levelStats[1] ..
+					"   2-" .. levelStats[2] ..
+					"   3-" .. levelStats[3])
+				total = total + levelStats[1] + levelStats[2] + levelStats[3]
+			end
+			Print("Total: " .. total)
+		end,
+		function()
+			Print("Could not contact server.")
+		end,
+		MyWorldHash())
 end
 
 local ProtomonGoInst = ProtomonGo:new()
