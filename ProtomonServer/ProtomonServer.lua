@@ -34,7 +34,8 @@ function ProtomonServer:OnLoad()
 	self.experience = {}
 	self.skillups = {}
 	self.prospects = {}
-	self.protomon = {} -- if game gets popular, we will need a kd-tree eventually
+	self.protomon = {}
+	self.spawns = {}
 
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
 	self.afkTimer = ApolloTimer.Create(kAfkPeriod, true, "StayAlive", self)  -- avoid afk timeout
@@ -218,12 +219,32 @@ function ProtomonServer:AddSpawn(protomonId, level, worldId, position)
 	end
 	newProtomon.viewers = {}
 	newProtomon.takers = {}
+
+	if not self.spawns[worldId] then self.spawns[worldId] = {} end
+	if not self.spawns[worldId][level] then self.spawns[worldId][level] = {} end
+	table.insert(self.spawns[worldId][level], {
+		id = protomonId,
+		location = newProtomon.location,
+	})
+	newProtomon.spawnId = #self.spawns[worldId][level]
+
 	table.insert(self.protomon[worldId], newProtomon)
 end
 
 function ProtomonServer:RemoveSpawn(worldId, zoneId)
 	if self.protomon[worldId] == nil then self.protomon[worldId] = {} end
+	
+	local protomon = self.protomon[worldId][zoneId]
 	self.protomon[worldId][zoneId] = nil
+
+	if protomon.spawnId ~= nil then
+		table.remove(self.spawns[worldId][protomon.level], protomon.spawnId)
+		for _, inspect in pairs(self.protomon[worldId]) do
+			if inspect.spawnId ~= nil and inspect.spawnId > protomon.spawnId and inspect.level == protomon.level then
+				inspect.spawnId = inspect.spawnId - 1
+			end
+		end
+	end
 end
 
 function ProtomonServer:RadarPulse(playerName, worldId, relativePosition)
@@ -416,6 +437,7 @@ function ProtomonServer:OnSave(eLevel)
 		tSave.experience = self.experience
 		tSave.skillups = self.skillups
 		tSave.protomon = self.protomon
+		tSave.spawns = self.spawns
 		for _, world in pairs(tSave.protomon) do
 			for _, protomon in pairs(world) do
 				protomon.viewers = {}  -- do not save these
@@ -442,6 +464,7 @@ function ProtomonServer:OnRestore(eLevel, tData)
 				end
 			end
 		end
+		self.spawns = tData.spawns
 	end
 end
 

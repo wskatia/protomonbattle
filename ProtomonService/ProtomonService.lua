@@ -59,7 +59,7 @@ ProtomonService.services = {
 					S.VARNUM, -- zone-id of protomon
 				},
 				returns = {
-					S.NUMBER(1), -- code number of prospective skill change, 64 if none
+					S.NUMBER(1), -- 6-bit code number of prospective skill change, 64 if none
 				},
 			},
 			
@@ -116,8 +116,19 @@ ProtomonService.services = {
 				returns = {},
 			},
 			
-			-- create a protomon here
+			-- create a protomon spawn here
 			["AddSpawn"] = {
+				args = {
+					S.NUMBER(1), -- protomon id
+					S.NUMBER(1), -- level
+					S.NUMBER(4), -- hash of zone/housing
+					S.ARRAY(3, S.VARSIGNEDNUM), -- position (x,y,z)
+				},
+				returns = {},
+			},
+			
+			-- create a protomon spawn here until the next zone reset
+			["AddTemporarySpawn"] = {
 				args = {
 					S.NUMBER(1), -- protomon id
 					S.NUMBER(1), -- level
