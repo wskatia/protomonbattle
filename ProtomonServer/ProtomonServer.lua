@@ -74,7 +74,7 @@ function ProtomonServer:GetBattleCode(player)
 end
 
 function ProtomonServer:NewPlayer(player)
-	self.playercodes[player] = {0, 0, 0, 0, 0}
+	self.playercodes[player] = {0, 64, 0, 0, 64}
 	self.experience[player] = {0,0,0,0,0}
 	self.skillups[player] = {0,0,0,0,0}
 end
@@ -141,7 +141,7 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 			bits[one_sets[1]] = 0
 			bits[togain] = 1
 		else
-			togain = math.random(#one_unsets + #two_unsets)
+			local togain = math.random(#one_unsets + #two_unsets)
 			if togain <= #one_unsets then -- gaining a 1 pt skill
 				togain = table.remove(one_unsets, togain) -- remember which; we may want to gain another
 				bits[togain] = 1

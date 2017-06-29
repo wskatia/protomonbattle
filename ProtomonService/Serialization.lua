@@ -241,6 +241,7 @@ function Serialization.VARARRAY(elementMarshal)
 					result[i], code = marshal.subMarshal:Decode(code, false)
 				end
 			else
+				local element
 				while code ~= "" do
 					element, code = marshal.subMarshal:Decode(code, false)
 					table.insert(result, element)

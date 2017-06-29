@@ -4,6 +4,7 @@ require "ICComm"
 require "Sound"
 
 local kVersion = 1
+local kProximity = 30
 
 local elementColors = {
 	["fire"] = {r = 1, g = 0, b = 0, a = 1},
@@ -554,6 +555,7 @@ function ProtomonGo:OnProtomonTrack()
 	self.wndCompass = self.wndTrack:FindChild("Compass")
 	self.wndArrow = self.wndCompass:FindChild("Arrow")
 	self.compassTimer = ApolloTimer.Create(0.05, true, "UpdateCompass", self)
+	self.alertTimer = ApolloTimer.Create(1, true, "UpdateAlert", self)
 	self:UpdateArrow()
 	ProtomonService:RemoteCall("ProtomonServer", "GetMyCode",
 		function(code)
@@ -573,6 +575,7 @@ function ProtomonGo:OnCloseTracker()
 		self.wndView:DestroyPixie(protomon.pixieId)
 	end
 	self.nearbyProtomon = {}
+	self.alertTimer:Stop()
 end
 
 function ProtomonGo:UpdateCompass()
@@ -596,6 +599,26 @@ function ProtomonGo:MarkForDeath(parent, label, delay)
 		dying.myParent[dying.myLabel] = nil
 	end
 	child.deathTimer = ApolloTimer.Create(delay, false, "Die", child)
+end
+
+function ProtomonGo:UpdateAlert()
+	if not GameLib.GetPlayerUnit() then return end
+	local position = GameLib.GetPlayerUnit():GetPosition()
+	local callingPosition = {
+		math.floor(position.x),
+		math.floor(position.y),
+		math.floor(position.z),		
+	}
+	local alert = 0
+	for _, protomon in pairs(self.nearbyProtomon) do
+		local distance = math.sqrt((callingPosition[1] - protomon.location.x)^2 +
+			(callingPosition[2] - protomon.location.y)^2 +
+			(callingPosition[3] - protomon.location.z)^2)
+		if distance < kProximity then
+			alert = 1
+		end
+	end
+	self.wndTrack:FindChild("Alert"):SetOpacity(alert)
 end
 
 function ProtomonGo:UpdateArrow()
