@@ -7,10 +7,12 @@ local kAfkPeriod = 60
 local kPersistPeriod = 3600
 
 local kViewRefresh = 60
-local kRespawn = 600
+local kSpawnDelay = 30
 local kViewDistance = 60
 local kVerticalDistance = 30
 local kHuntDistance = 100
+
+local kLevelMultiplier = 10
 
 local ProtomonService
 
@@ -32,7 +34,7 @@ function ProtomonServer:OnLoad()
 
 	self.playercodes = {}
 	self.experience = {}
-	self.skillups = {}
+	self.skillswaps = {}
 	self.prospects = {}
 	self.protomon = {}
 	self.spawns = {}
@@ -40,6 +42,28 @@ function ProtomonServer:OnLoad()
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
 	self.afkTimer = ApolloTimer.Create(kAfkPeriod, true, "StayAlive", self)  -- avoid afk timeout
 	self.persistTimer = ApolloTimer.Create(kPersistPeriod, true, "Persist", self)  -- save data
+	self.spawnTimer = ApolloTimer.Create(kSpawnDelay, false, "Respawn", self) -- defer spawn calculations so delay doesn't stack with load time
+end
+
+function ProtomonServer:Respawn()
+	-- TODO: make this conditional per zone
+	for worldId, spawnset in pairs(self.spawns) do
+		self.protomon[worldId] = {}
+		
+		for level, spawns in pairs(spawnset) do
+			-- TODO: pick a set number from each level defined in zone params
+			for spawnId, spawn in pairs(spawns) do
+				table.insert(self.protomon[worldId], {
+					level = level,
+					location = spawn.location,
+					protomonId = spawn.id,
+					spawnId = spawnId,
+					takers = {},
+					viewers = {}
+				})
+			end
+		end
+	end
 end
 
 --------------------
@@ -76,7 +100,7 @@ end
 function ProtomonServer:NewPlayer(player)
 	self.playercodes[player] = {0, 64, 0, 0, 64}
 	self.experience[player] = {0,0,0,0,0}
-	self.skillups[player] = {0,0,0,0,0}
+	self.skillswaps[player] = {0,0,0,0,0}
 end
 
 -- Protomon skill changes will favor minor adjustments of current loadout rather than complete randomization
@@ -96,8 +120,7 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 	end
 	local protomonId = self.protomon[worldId][zoneId].protomonId
 	local level = self.protomon[worldId][zoneId].level
-	self.protomon[worldId][zoneId].takers[player] = {}
-	MarkForDeath(self.protomon[worldId][zoneId].takers, player, kRespawn)
+	self.protomon[worldId][zoneId].takers[player] = true
 	self.protomon[worldId][zoneId].viewers[player]:Die()
 	
 	-- get info about current protomon
@@ -111,8 +134,11 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 	if code >= 64 then
 		-- no protomon, make a new one
 		self.playercodes[player][protomonId] = 0
+		self.experience[player][protomonId] = 0
+		self.skillswaps[player][protomonId] = 0
 		return 0
 	end
+	
 	for i=1,6 do
 		bits[i] = code % 2
 		if bits[i] == 1 then
@@ -132,10 +158,23 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 		code = math.floor(code / 2)
 	end
 
+	-- was this at least a skillswap?
+	if level < cost then
+		self.experience[player][protomonId] = self.experience[player][protomonId] + kLevelMultiplier^level
+		if math.random(2 * kLevelMultiplier^cost) > self.experience[player][protomonId] then
+			return 64
+		end
+	end
+	
+	-- reset experience for skillswap, check if it's actually a levelup
 	local levelup = false
-	if (self.skillups[player][protomonId] < 1 or cost >= 3) and cost > 0 then
+	self.experience[player][protomonId] = 0
+	self.skillswaps[player][protomonId] = self.skillswaps[player][protomonId] + 1
+	levelup = (cost == 0) or (cost < 3 and
+		kLevelMultiplier + math.random(kLevelMultiplier) < self.skillswaps[player][protomonId])
+
+	if not levelup then
 		-- handle skill swaps
-		self.skillups[player][protomonId] = self.skillups[player][protomonId] + 1
 		if cost == 1 then -- level 1, just swap one skill for another
 			local togain = one_unsets[math.random(#one_unsets)]
 			bits[one_sets[1]] = 0
@@ -171,9 +210,8 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 		end
 	else
 		-- handle level ups
-		levelup = true
 		bits[one_unsets[math.random(#one_unsets)]] = 1
-		self.skillups[player][protomonId] = 0
+		self.skillswaps[player][protomonId] = 0
 	end
 	
 	local newcode = 0
@@ -435,13 +473,12 @@ function ProtomonServer:OnSave(eLevel)
 		local tSave = {}
 		tSave.playercodes = self.playercodes
 		tSave.experience = self.experience
-		tSave.skillups = self.skillups
+		tSave.skillswaps = self.skillswaps
 		tSave.protomon = self.protomon
 		tSave.spawns = self.spawns
 		for _, world in pairs(tSave.protomon) do
 			for _, protomon in pairs(world) do
 				protomon.viewers = {}  -- do not save these
-				protomon.takers = {}
 			end
 		end
 		return tSave
@@ -453,17 +490,8 @@ function ProtomonServer:OnRestore(eLevel, tData)
 	if eLevel == GameLib.CodeEnumAddonSaveLevel.Character then
 		self.playercodes = tData.playercodes or {}
 		self.experience = tData.experience or {}
-		self.skillups = tData.skillups or {}
+		self.skillswaps = tData.skillswaps or {}
 		self.protomon = tData.protomon or {}
-		for _, world in pairs(self.protomon) do
-			for _, protomon in pairs(world) do
-				if protomon.typeLevel then
-					protomon.protomonId = math.floor(protomon.typeLevel / 4)
-					protomon.level = protomon.typeLevel % 4
-					protomon.typeLevel = nil
-				end
-			end
-		end
 		self.spawns = tData.spawns
 	end
 end

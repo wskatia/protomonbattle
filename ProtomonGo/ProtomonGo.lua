@@ -52,7 +52,11 @@ local function MyWorldHash()
 		return HashString(res:GetPropertyOwnerName(), 78074895) -- 94^4 - 1, 4 rpc bytes
 	else
 		local zone = GameLib.GetCurrentZoneMap()
-		return zone.nWorldId * 1000000 + zone.continentId * 1000 + zone.id
+		if zone.parentZoneId ~= 0 then
+			return zone.nWorldId * 1000000 + zone.continentId * 1000 + zone.parentZoneId
+		else
+			return zone.nWorldId * 1000000 + zone.continentId * 1000 + zone.id
+		end
 	end
 end
 
