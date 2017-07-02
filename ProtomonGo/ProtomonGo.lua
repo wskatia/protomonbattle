@@ -8,7 +8,7 @@ local kProximity = 30
 
 local elementColors = {
 	["fire"] = {r = 1, g = 0, b = 0, a = 1},
-	["air"] = {r = 1, g = 1, b = 1, a = 0.7},
+	["air"] = {r = 1, g = 1, b = 0, a = 0.7},
 	["life"] = {r = 0, g = 1, b = 0, a = 1},
 	["water"] = {r = 0, g = 0, b = 1, a = 1},
 	["earth"] = {r = 0.8, g = 0.4, b = 0.1, a = 1},
@@ -168,8 +168,12 @@ function ProtomonGo:OnLoad()
 	self.xmlDoc:RegisterCallback("OnDocLoaded", self)
 
 	Apollo.RegisterSlashCommand("protomongo", "OnProtomonGo", self)
+	Apollo.RegisterSlashCommand("protodex", "OnProtomonGo", self)
 	Apollo.RegisterSlashCommand("protomonbattle", "OnProtomonBattle", self)
 	Apollo.RegisterSlashCommand("protomontracker", "OnProtomonTrack", self)
+	Apollo.RegisterSlashCommand("prototracker", "OnProtomonTrack", self)
+	Apollo.RegisterSlashCommand("protomontrack", "OnProtomonTrack", self)
+	Apollo.RegisterSlashCommand("prototrack", "OnProtomonTrack", self)
 	Apollo.RegisterSlashCommand("addspawn", "OnAddSpawn", self)
 	Apollo.RegisterSlashCommand("removespawn", "OnRemoveSpawn", self)
 	Apollo.RegisterSlashCommand("getzoneinfo", "OnGetZoneInfo", self)
@@ -425,7 +429,7 @@ function ProtomonGo:OnBattleChat(iccomm, strMessage, strSender)
 			self.wndBattle:FindChild(self.activefighter):SetOpacity(0.3)
 		end
 		self.activefighter = "Fighter" .. arguments[2]
-		self.wndBattle:FindChild(self.activefighter):SetText(arguments[3])
+		self.wndBattle:FindChild(self.activefighter):SetText(self.protomon[protomonbattle_names[arguments[3]]].name)
 		self.wndBattle:FindChild(self.activefighter):SetTextColor(elementColors[self.protomon[protomonbattle_names[arguments[3]]].element])
 		self.wndBattle:FindChild(self.activefighter):SetOpacity(1)
 		self.wndBattle:FindChild("Hp" .. arguments[2]):SetText(arguments[4])
@@ -435,7 +439,7 @@ function ProtomonGo:OnBattleChat(iccomm, strMessage, strSender)
 		
 		for attackname, _ in pairs(self.protomon[protomonbattle_names[arguments[3]]].attacks) do
 			local wndListItem = Apollo.LoadForm(self.xmlDoc, "Command", wndList, self)
-			wndListItem:FindChild("Button"):SetText(attackname .. "(" .. protomonbattle_attacks[attackname].damage .. ")")
+			wndListItem:FindChild("Button"):SetText(protomonbattle_attacks[attackname].name .. " (" .. protomonbattle_attacks[attackname].damage .. ")")
 			wndListItem:FindChild("Button"):SetNormalTextColor(elementColors[protomonbattle_attacks[attackname].element])
 			wndListItem:FindChild("Button"):SetData("use " .. attackname)
 		end
@@ -741,8 +745,24 @@ function ProtomonGo:OnProtomonView()
 			ProtomonService:RemoteCall("ProtomonServer", "FindProtomon",
 				function(x)
 					self.nearbyProtomon[nearestId]:Die()
+
+					local currentLevel = PointsSpent(self.mycode[nearest.protomonId])
+					local foundLevel = nearest.level
+					local newLevel = PointsSpent(x)
+					local name = protomonbattle_protomon[nearest.protomonId].name
+					if newLevel == 0 and x < 64 then
+						FloatText(name .. " wants her cub to train with you!")
+					elseif foundLevel > currentLevel then
+						FloatText(name .. " learns a lot from studying under an elder!")
+					elseif foundLevel == currentLevel then
+						FloatText(name .. " spars with a wild protomon!")
+					else
+						FloatText(name .. " plays with a youngling for awhile.")
+					end
+
 					if x >= 64 then return end
-					if PointsSpent(x) == PointsSpent(self.mycode[nearest.protomonId]) and PointsSpent(x) > 0 then
+
+					if newLevel == currentLevel and newLevel > 0 then
 						self.wndConfirm:FindChild("Before"):DestroyChildren()
 						self:MakeCard(self.wndConfirm:FindChild("Before"), nearest.protomonId, self.mycode[nearest.protomonId])
 						self.wndConfirm:FindChild("After"):DestroyChildren()

@@ -605,7 +605,7 @@ function ProtomonBattle:HandleSwitch(player)
 		table.insert(self.actionQueue, {
 			action = "private",
 			dest = player,
-			msg = "switch " .. command.which .. " " .. selectedProtomon.name .. " " .. selectedFighter.hp,
+			msg = "switch " .. command.which .. " " .. string.lower(selectedProtomon.name) .. " " .. selectedFighter.hp,
 			delay = 0.1,
 		})
 

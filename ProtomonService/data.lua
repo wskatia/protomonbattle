@@ -45,140 +45,140 @@ protomonbattle_element_damage = {
 
 protomonbattle_attacks = {
 	["inferno"] = {
-		name = "inferno",
+		name = "Inferno",
 		animation = "inferno",
 		element = "fire",
 		damage = 12,
 	},
 	["lightning bolt"] = {
-		name = "lightning bolt",
+		name = "Lightning Bolt",
 		animation = "lightning bolt",
 		element = "air",
 		damage = 12,
 	},
 	["vine whip"] = {
-		name = "vine whip",
+		name = "Vine Whip",
 		animation = "vine whip",
 		element = "life",
 		damage = 12,
 	},
 	["torrent"] = {
-		name = "torrent",
+		name = "Torrent",
 		animation = "torrent",
 		element = "water",
 		damage = 12,
 	},
 	["earth smash"] = {
-		name = "earth smash",
+		name = "Earth Smash",
 		animation = "earth smash",
 		element = "earth",
 		damage = 12,
 	},
 	["hot foot"] = {
-		name = "hot foot",
+		name = "Hot Foot",
 		animation = "hot foot",
 		element = "fire",
 		damage = 8,
 	},
 	["zap"] = {
-		name = "zap",
+		name = "Zap",
 		animation = "zap",
 		element = "air",
 		damage = 8,
 	},
 	["overgrowth"] = {
-		name = "overgrowth",
+		name = "Overgrowth",
 		animation = "overgrowth",
 		element = "life",
 		damage = 8,
 	},
 	["splash"] = {
-		name = "splash",
+		name = "Splash",
 		animation = "splash",
 		element = "water",
 		damage = 8,
 	},
 	["rock toss"] = {
-		name = "rock toss",
+		name = "Rock Toss",
 		animation = "rock toss",
 		element = "earth",
 		damage = 8,
 	},
 	["flash fire"] = {
-		name = "flash fire",
+		name = "Flash Fire",
 		animation = "flash fire",
 		element = "fire",
 		damage = 10,
 	},
 	["hot steam"] = {
-		name = "hot steam",
+		name = "Hot Steam",
 		animation = "hot steam",
 		element = "fire",
 		damage = 10,
 	},
 	["bio shock"] = {
-		name = "bio shock",
+		name = "Bio Shock",
 		animation = "bio shock",
 		element = "air",
 		damage = 10,
 	},
 	["static shock"] = {
-		name = "static shock",
+		name = "Static Shock",
 		animation = "static shock",
 		element = "air",
 		damage = 10,
 	},
 	["explosive egg"] = {
-		name = "explosive egg",
+		name = "Explosive Egg",
 		animation = "explosive egg",
 		element = "life",
 		damage = 10,
 	},
 	["kelp growth"] = {
-		name = "kelp growth",
+		name = "Kelp Growth",
 		animation = "kelp growth",
 		element = "life",
 		damage = 10,
 	},
 	["mist spray"] = {
-		name = "mist spray",
+		name = "Mist Spray",
 		animation = "mist spray",
 		element = "water",
 		damage = 10,
 	},
 	["mud bath"] = {
-		name = "mud bath",
+		name = "Mud Bath",
 		animation = "mud bath",
 		element = "water",
 		damage = 10,
 	},
 	["sand kick"] = {
-		name = "sand kick",
+		name = "Sand Kick",
 		animation = "sand kick",
 		element = "earth",
 		damage = 10,
 	},
 	["rock slide"] = {
-		name = "rock slide",
+		name = "Rock Slide",
 		animation = "rock slide",
 		element = "earth",
 		damage = 10,
 	},
 	["ram"] = {
-		name = "ram",
+		name = "Ram",
 		animation = "tackle",
 		element = "normal",
 		damage = 8,
 	},
 	["tackle"] = {
-		name = "tackle",
+		name = "Tackle",
 		animation = "tackle",
 		element = "normal",
 		damage = 6,
 		skipswapattack = true,
 	},
 	["fusion beam"] = {
-		name = "fusion beam",
+		name = "Fusion Beam",
 		animation = "fusion beam",
 		element = "normal",
 		damage = 20,
@@ -188,7 +188,7 @@ protomonbattle_attacks = {
 
 protomonbattle_protomon = {
 	[1] = {
-		name = "charenok",
+		name = "Charenok",
 		element = "fire",
 		hp = 60,
 		placement = {
@@ -252,7 +252,7 @@ protomonbattle_protomon = {
 		},
 	},
 	[2] = {
-		name = "vindchu",
+		name = "Vindchu",
 		element = "air",
 		hp = 60,
 		placement = {
@@ -315,7 +315,7 @@ protomonbattle_protomon = {
 		},
 	},
 	[3] = {
-		name = "stemasaur",
+		name = "Stemasaur",
 		element = "life",
 		hp = 60,
 		placement = {
@@ -378,7 +378,7 @@ protomonbattle_protomon = {
 		},
 	},
 	[4] = {
-		name = "squig",
+		name = "Squig",
 		element = "water",
 		hp = 60,
 		placement = {
@@ -442,7 +442,7 @@ protomonbattle_protomon = {
 		},
 	},
 	[5] = {
-		name = "boulderdude",
+		name = "Boulderdude",
 		element = "earth",
 		hp = 60,
 		placement = {
