@@ -157,6 +157,17 @@ ProtomonService.services = {
 				},
 			},
 			
+			-- get all protomon for zone (don't use too often)
+			["GetZoneList"] = {
+				args = {
+					S.NUMBER(4), -- hash of zone/housing
+				},
+				returns = {
+					S.VARARRAY(S.TUPLE(
+						S.BITARRAY(3, true, 3, true), -- element, level
+						S.ARRAY(3, S.VARSIGNEDNUM))) -- zone relative position(x,y,z)
+				},
+			},
 		},
 	},
 }
@@ -235,7 +246,7 @@ function ProtomonService:HandleRequest(iccomm, strMessage, strSender)
 		resultstring = rpc.returns[i]:Encode(results[i], resultstring, i==#rpc.returns)
 	end
 	if resultstring == "" then resultstring = kReservedChar end -- must send at least one char
---	Print(serviceName .. ":" .. rpcName .. " sent " .. #resultstring)
+	--Print(serviceName .. ":" .. rpcName .. " sent " .. resultstring)
 	rpc.responseComm:SendPrivateMessage(strSender, resultstring)
 end
 

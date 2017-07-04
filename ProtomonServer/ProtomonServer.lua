@@ -46,6 +46,10 @@ function ProtomonServer:OnLoad()
 end
 
 function ProtomonServer:Respawn()
+	local currentDay = GameLib.GetServerTime().nDayOfWeek
+	if self.lastDay == currentDay then return end
+	self.lastDay = currentDay
+
 	-- TODO: make this conditional per zone
 	for worldId, spawnset in pairs(self.spawns) do
 		self.protomon[worldId] = {}
@@ -170,6 +174,9 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 	local levelup = false
 	self.experience[player][protomonId] = 0
 	self.skillswaps[player][protomonId] = self.skillswaps[player][protomonId] + 1
+	if level > cost then
+		self.skillswaps[player][protomonId] = self.skillswaps[player][protomonId] + 1
+	end
 	levelup = (cost == 0) or (cost < 3 and
 		kLevelMultiplier + math.random(kLevelMultiplier) < self.skillswaps[player][protomonId])
 
@@ -366,6 +373,21 @@ function ProtomonServer:GetZoneInfo(worldId)
 	return stats
 end
 
+function ProtomonServer:GetZoneList(worldId)
+	local result = {}
+	for i, spawn in pairs(self.protomon[worldId]) do
+		table.insert(result, {
+			{((spawn.protomonId - 1) % 6) + 1, spawn.level},
+			{
+				math.floor((spawn.location[1] - protomonbattle_zones[worldId].center.x + 5) / 10),
+				math.floor((spawn.location[2] - protomonbattle_zones[worldId].center.y + 5) / 10),
+				math.floor((spawn.location[3] - protomonbattle_zones[worldId].center.z + 5) / 10),
+			},
+		})
+	end
+	return result
+end
+
 --------------------
 -- Startup connections
 --------------------
@@ -435,6 +457,11 @@ function ProtomonServer:ConnectProtomonService()
 					return self:GetZoneInfo(worldId)
 				end)
 
+			ProtomonService:Implement("ProtomonServerAdmin", "GetZoneList",
+				function(caller, worldId)
+					return self:GetZoneList(worldId)
+				end)
+
 		end
 	else
 		self.protomonServiceConnectTimer:Stop()
@@ -481,6 +508,7 @@ function ProtomonServer:OnSave(eLevel)
 				protomon.viewers = {}  -- do not save these
 			end
 		end
+		tSave.lastDay = self.lastDay
 		return tSave
 	end
 end
@@ -493,6 +521,7 @@ function ProtomonServer:OnRestore(eLevel, tData)
 		self.skillswaps = tData.skillswaps or {}
 		self.protomon = tData.protomon or {}
 		self.spawns = tData.spawns
+		self.lastDay = tData.lastDay
 	end
 end
 

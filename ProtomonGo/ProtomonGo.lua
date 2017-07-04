@@ -23,6 +23,22 @@ local sprites = {
 	[5] = "ProtomonSprites:Boulderdude",
 }
 
+local portraits = {
+	[1] = "ProtomonSprites:P_Charenok",
+	[2] = "ProtomonSprites:P_Vindchu",
+	[3] = "ProtomonSprites:P_Stemasaur",
+	[4] = "ProtomonSprites:P_Squig",
+	[5] = "ProtomonSprites:P_Boulderdude",
+}
+
+local ages = {
+	[0] = "Young",
+	"Adult",
+	"Seasoned",
+	"Elder",
+	"Legendary",
+}
+
 local ProtomonService
 
 --------------------
@@ -177,10 +193,13 @@ function ProtomonGo:OnLoad()
 	Apollo.RegisterSlashCommand("addspawn", "OnAddSpawn", self)
 	Apollo.RegisterSlashCommand("removespawn", "OnRemoveSpawn", self)
 	Apollo.RegisterSlashCommand("getzoneinfo", "OnGetZoneInfo", self)
+	Apollo.RegisterSlashCommand("fillzonemap", "OnFillZoneMap", self)
+	Apollo.RegisterSlashCommand("clearzonemap", "OnClearZoneMap", self)
 
 	self.protomon = CopyTable(protomonbattle_protomon)
 	self.playingmusic = false
 	self.nearbyProtomon = {}
+	self.mapObjects = {}
 
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
@@ -361,7 +380,7 @@ function ProtomonGo:OnFighter(wndHandler, wndControl)
 		local wndList = self.wndBattle:FindChild("List")
 		wndList:DestroyChildren()
 		
-		for attackname, _ in pairs(self.protomon[protomonbattle_names[wndHandler:GetText()]].attacks) do
+		for attackname, _ in pairs(self.protomon[protomonbattle_names[string.lower(wndHandler:GetText())]].attacks) do
 			local wndListItem = Apollo.LoadForm(self.xmlDoc, "Command", wndList, self)
 			wndListItem:FindChild("Button"):SetText(attackname .. "(" .. protomonbattle_attacks[attackname].damage .. ")")
 			wndListItem:FindChild("Button"):SetNormalTextColor(elementColors[protomonbattle_attacks[attackname].element])
@@ -431,6 +450,7 @@ function ProtomonGo:OnBattleChat(iccomm, strMessage, strSender)
 		self.activefighter = "Fighter" .. arguments[2]
 		self.wndBattle:FindChild(self.activefighter):SetText(self.protomon[protomonbattle_names[arguments[3]]].name)
 		self.wndBattle:FindChild(self.activefighter):SetTextColor(elementColors[self.protomon[protomonbattle_names[arguments[3]]].element])
+		self.wndBattle:FindChild(self.activefighter):FindChild("Image"):SetSprite(portraits[protomonbattle_names[arguments[3]]])
 		self.wndBattle:FindChild(self.activefighter):SetOpacity(1)
 		self.wndBattle:FindChild("Hp" .. arguments[2]):SetText(arguments[4])
 
@@ -495,14 +515,15 @@ end
 function ProtomonGo:MakeCard(wndParent, id, code)
 	local wndCard = Apollo.LoadForm(self.xmlDoc, "ProtomonCard", wndParent, self)
 	local protomon = CopyTable(protomonbattle_protomon[id])
-	ApplyCode(protomon, code)
+	local level = ApplyCode(protomon, code)
 	if protomon.absent then
 		wndCard:SetText("ABSENT")
 		wndCard:SetOpacity(0.5)
 		return
 	end
-	wndCard:FindChild("Portrait"):SetText(self.protomon[id].name)
-	wndCard:FindChild("Portrait"):SetTextColor(elementColors[self.protomon[id].element])
+	wndCard:FindChild("Name"):SetText(ages[level] .. " " .. self.protomon[id].name)
+	wndCard:FindChild("Name"):SetTextColor(elementColors[self.protomon[id].element])
+	wndCard:FindChild("Portrait"):FindChild("Image"):SetSprite(portraits[id])
 	wndCard:FindChild("Hp"):SetText("HP: " .. protomon.hp)
 	wndCard:FindChild("Swap Attack"):SetText("Swap Attack: " .. protomon.switchattack)
 	local wndList = wndCard:FindChild("Attacks")
@@ -710,7 +731,7 @@ end
 function ProtomonGo:InFirstPerson()
 	local pos = GameLib.GetPlayerUnit():GetPosition()
 	local facing = GameLib.GetPlayerUnit():GetFacing()
-	self.wndPos:SetWorldLocation(Vector3.New(pos.x-facing.x, pos.y, pos.z-facing.z))
+	self.wndPos:SetWorldLocation(Vector3.New(pos.x-(1.5 * facing.x), pos.y, pos.z-(1.5 * facing.z)))
 	return not self.wndPos:IsOnScreen()
 end
 
@@ -753,7 +774,7 @@ function ProtomonGo:OnProtomonView()
 					if newLevel == 0 and x < 64 then
 						FloatText(name .. " wants her cub to train with you!")
 					elseif foundLevel > currentLevel then
-						FloatText(name .. " learns a lot from studying under an elder!")
+						FloatText(name .. " learns a lot from practicing with an older protomon!")
 					elseif foundLevel == currentLevel then
 						FloatText(name .. " spars with a wild protomon!")
 					else
@@ -841,10 +862,10 @@ function ProtomonGo:UpdateViewer()
 					loc = {
 						fPoints = {adjustedX, adjustedY, adjustedX, adjustedY},
 						nOffsets = {
-							-500 / distance,
-							-1000 / distance,
-							500 / distance,
-							0,
+							-800 / distance,
+							-1200 / distance,
+							800 / distance,
+							400 / distance,
 							}}
 					})
 			else
@@ -979,6 +1000,52 @@ function ProtomonGo:OnGetZoneInfo()
 			Print("Could not contact server.")
 		end,
 		MyWorldHash())
+end
+
+function ProtomonGo:OnFillZoneMap()
+	self:OnClearZoneMap()
+
+	local mapType =  Apollo.GetAddon("ZoneMap").eObjectTypeQuest
+	local zoneMap = Apollo.GetAddon("ZoneMap").wndZoneMap
+
+	local zoneHash = MyWorldHash()
+	local center
+	if protomonbattle_zones[zoneHash] then
+		center = protomonbattle_zones[zoneHash].center
+	else
+		center = protomonbattle_zones["housing"].center
+	end
+
+	ProtomonService:RemoteCall("ProtomonServerAdmin", "GetZoneList",
+		function(spawns)
+			for i, spawn in pairs(spawns) do
+				local tInfo = {
+					strIcon = "CRB_NumberFloaters:sprFloater_Normal" .. spawn[1][2],
+					crObject = elementColors[protomonbattle_protomon[spawn[1][1]].element],
+					fRadius = 0.5,
+				}
+				table.insert(self.mapObjects,
+					zoneMap:AddObject(
+						mapType,
+						{
+							x = 10 * spawn[2][1] + center.x,
+							y = 10 * spawn[2][2] + center.y,
+							z = 10 * spawn[2][3] + center.z,
+						},
+						"", tInfo, {bNeverShowOnEdge = false}))
+			end
+		end,
+		function()
+			Print("Could not contact server.")
+		end,
+		zoneHash)
+end
+
+function ProtomonGo:OnClearZoneMap()
+	local zoneMap = Apollo.GetAddon("ZoneMap").wndZoneMap
+	while #self.mapObjects > 0 do
+		zoneMap:RemoveObject(table.remove(self.mapObjects))
+	end
 end
 
 local ProtomonGoInst = ProtomonGo:new()

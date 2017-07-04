@@ -103,7 +103,7 @@ Serialization.VARNUM = {
 			while true do
 				local digit = Serialization.DeserializeNumber(string.sub(code, 1, 1))
 				code = string.sub(code, 2)
-				if digit > 47 then
+				if digit >= 47 then
 					result = result * 47 + (digit - 47)
 				else
 					result = result * 47 + digit

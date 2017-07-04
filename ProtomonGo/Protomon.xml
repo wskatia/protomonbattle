@@ -1,18 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Sprites>
     <Sprite Name="Charenok" Cycle="1">
-        <Frame Texture="ProtomonGo\Protomon\charmander.png" x0="0" x1="0" x2="0" x3="0" x4="1024" x5="1024" y0="0" y1="0" y2="0" y3="0" y4="1024" y5="1024" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+        <Frame Texture="ProtomonGo\Protomon\charenok.png" x0="0" x1="0" x2="0" x3="0" x4="400" x5="400" y0="0" y1="0" y2="0" y3="0" y4="400" y5="400" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
     </Sprite>
     <Sprite Name="Vindchu" Cycle="1">
-        <Frame Texture="ProtomonGo\Protomon\pikachu.png" x0="0" x1="0" x2="0" x3="0" x4="250" x5="250" y0="0" y1="0" y2="0" y3="0" y4="250" y5="250" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+        <Frame Texture="ProtomonGo\Protomon\vindchu.png" x0="0" x1="0" x2="0" x3="0" x4="400" x5="400" y0="0" y1="0" y2="0" y3="0" y4="400" y5="400" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
     </Sprite>
     <Sprite Name="Stemasaur" Cycle="1">
-        <Frame Texture="ProtomonGo\Protomon\bulbasaur.png" x0="0" x1="0" x2="0" x3="0" x4="800" x5="800" y0="0" y1="0" y2="0" y3="0" y4="800" y5="800" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+        <Frame Texture="ProtomonGo\Protomon\stemasaur.png" x0="0" x1="0" x2="0" x3="0" x4="400" x5="400" y0="0" y1="0" y2="0" y3="0" y4="400" y5="400" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
     </Sprite>
     <Sprite Name="Squig" Cycle="1">
-        <Frame Texture="ProtomonGo\Protomon\squirtle.png" x0="0" x1="0" x2="0" x3="0" x4="800" x5="800" y0="0" y1="0" y2="0" y3="0" y4="800" y5="800" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+        <Frame Texture="ProtomonGo\Protomon\squig.png" x0="0" x1="0" x2="0" x3="0" x4="400" x5="400" y0="0" y1="0" y2="0" y3="0" y4="400" y5="400" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
     </Sprite>
     <Sprite Name="Boulderdude" Cycle="1">
-        <Frame Texture="ProtomonGo\Protomon\geodude.png" x0="0" x1="0" x2="0" x3="0" x4="300" x5="300" y0="0" y1="0" y2="0" y3="0" y4="300" y5="300" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+        <Frame Texture="ProtomonGo\Protomon\boulderdude.png" x0="0" x1="0" x2="0" x3="0" x4="400" x5="400" y0="0" y1="0" y2="0" y3="0" y4="400" y5="400" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+    </Sprite>
+    <Sprite Name="P_Charenok" Cycle="1">
+        <Frame Texture="ProtomonGo\Protomon\p_charenok.png" x0="0" x1="0" x2="0" x3="0" x4="70" x5="70" y0="0" y1="0" y2="0" y3="0" y4="75" y5="75" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+    </Sprite>
+    <Sprite Name="P_Vindchu" Cycle="1">
+        <Frame Texture="ProtomonGo\Protomon\p_vindchu.png" x0="0" x1="0" x2="0" x3="0" x4="70" x5="70" y0="0" y1="0" y2="0" y3="0" y4="75" y5="75" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+    </Sprite>
+    <Sprite Name="P_Stemasaur" Cycle="1">
+        <Frame Texture="ProtomonGo\Protomon\p_stemasaur.png" x0="0" x1="0" x2="0" x3="0" x4="70" x5="70" y0="0" y1="0" y2="0" y3="0" y4="75" y5="75" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+    </Sprite>
+    <Sprite Name="P_Squig" Cycle="1">
+        <Frame Texture="ProtomonGo\Protomon\p_squig.png" x0="0" x1="0" x2="0" x3="0" x4="70" x5="70" y0="0" y1="0" y2="0" y3="0" y4="75" y5="75" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
+    </Sprite>
+    <Sprite Name="P_Boulderdude" Cycle="1">
+        <Frame Texture="ProtomonGo\Protomon\p_boulderdude.png" x0="0" x1="0" x2="0" x3="0" x4="70" x5="70" y0="0" y1="0" y2="0" y3="0" y4="75" y5="75" Stretchy="1" HotspotX="0" HotspotY="0" Duration="1.000" StartColor="white" EndColor="white"/>
     </Sprite>
 </Sprites>
