@@ -3,7 +3,7 @@ require "ICCommLib"
 require "ICComm"
 require "Sound"
 
-local kVersion = 1
+local kVersion = 2
 local kProximity = 30
 
 local elementColors = {
@@ -203,7 +203,7 @@ function ProtomonGo:OnLoad()
 
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
-	self.getVersionTimer = ApolloTimer.Create(6, true, "GetVersion", self)
+	self.getVersionTimer = ApolloTimer.Create(10, true, "GetVersion", self)
 end
 
 function ProtomonGo:OnDocLoaded()
@@ -420,6 +420,9 @@ function ProtomonGo:OnBattleChat(iccomm, strMessage, strSender)
 		self.wndBattle:FindChild("Fighter1"):SetText("")
 		self.wndBattle:FindChild("Fighter2"):SetText("")
 		self.wndBattle:FindChild("Fighter3"):SetText("")
+		self.wndBattle:FindChild("Fighter1"):FindChild("Image"):SetSprite()
+		self.wndBattle:FindChild("Fighter2"):FindChild("Image"):SetSprite()
+		self.wndBattle:FindChild("Fighter3"):FindChild("Image"):SetSprite()
 		self.wndBattle:FindChild("Fighter1"):SetTextColor({r=1,g=1,b=1,a=1})
 		self.wndBattle:FindChild("Fighter2"):SetTextColor({r=1,g=1,b=1,a=1})
 		self.wndBattle:FindChild("Fighter3"):SetTextColor({r=1,g=1,b=1,a=1})
@@ -651,6 +654,7 @@ function ProtomonGo:UpdateAlert()
 end
 
 function ProtomonGo:UpdateArrow()
+	if not self.wndTrack:IsVisible() then return end
 	if not GameLib.GetPlayerUnit() then return end
 	local position = GameLib.GetPlayerUnit():GetPosition()
 	local callingPosition = {

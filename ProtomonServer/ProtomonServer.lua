@@ -1,4 +1,4 @@
-local kVersion = 1
+local kVersion = 2
 
 -- piece of decor Protomon Server's housing plot
 local kDecorLo = 23340907
@@ -115,7 +115,6 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 		self:NewPlayer(player)
 	end
 	
-	Print(player .. " " .. worldId .. " " .. zoneId)
 	if not self.protomon[worldId] or -- in a valid area?
 		not self.protomon[worldId][zoneId] or -- this protomon exists?
 		not self.protomon[worldId][zoneId].viewers[player] or -- player has seen it before capping?
@@ -175,7 +174,7 @@ function ProtomonServer:FindProtomon(player, worldId, zoneId)
 	self.experience[player][protomonId] = 0
 	self.skillswaps[player][protomonId] = self.skillswaps[player][protomonId] + 1
 	if level > cost then
-		self.skillswaps[player][protomonId] = self.skillswaps[player][protomonId] + 1
+		self.skillswaps[player][protomonId] = self.skillswaps[player][protomonId] + (math.floor(kLevelMultiplier/3))^(level - cost) - 1
 	end
 	levelup = (cost == 0) or (cost < 3 and
 		kLevelMultiplier + math.random(kLevelMultiplier) < self.skillswaps[player][protomonId])

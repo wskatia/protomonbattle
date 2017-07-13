@@ -233,6 +233,7 @@ function ProtomonService:HandleRequest(iccomm, strMessage, strSender)
 	local rpc = self.services[serviceName].rpcs[rpcName]
 	if rpc.requestHandler == nil then return end
 	
+	Print(serviceName .. ":" .. rpcName .. " recvd " .. strSender .. ":" .. strMessage)
 	if strMessage == kReservedChar then strMessage = "" end
 	local args = {}
 	for i = 1, #rpc.args do
@@ -246,7 +247,7 @@ function ProtomonService:HandleRequest(iccomm, strMessage, strSender)
 		resultstring = rpc.returns[i]:Encode(results[i], resultstring, i==#rpc.returns)
 	end
 	if resultstring == "" then resultstring = kReservedChar end -- must send at least one char
-	--Print(serviceName .. ":" .. rpcName .. " sent " .. resultstring)
+	Print(serviceName .. ":" .. rpcName .. " sent " .. resultstring)
 	rpc.responseComm:SendPrivateMessage(strSender, resultstring)
 end
 
