@@ -572,6 +572,20 @@ protomonbattle_zones = {
 			z = -950,
 		},
 	},
+	[22008006] = { -- auroria
+		center = {
+			x = -1550,
+			y = -900,
+			z = -1275,
+		},
+	},
+	[51006002] = { -- whitevale
+		center = {
+			x = 3875,
+			y = -950,
+			z = 200,
+		},
+	},
 	[0104548] = { -- Redmoon Terror
 		center = {
 			x = -300,
