@@ -1,4 +1,4 @@
-local kVersion = 2
+local kVersion = 3
 
 -- piece of decor Protomon Server's housing plot
 local kDecorLo = 23340907
@@ -250,15 +250,15 @@ function ProtomonServer:AddSpawn(protomonId, level, worldId, position)
 	newProtomon.level = level
 	if protomonbattle_zones[worldId] then
 		newProtomon.location = {
-			position[1] / 4 + protomonbattle_zones[worldId].center.x,
-			position[2] / 4 + protomonbattle_zones[worldId].center.y,
-			position[3] / 4 + protomonbattle_zones[worldId].center.z,
+			position[1] + protomonbattle_zones[worldId].center.x,
+			position[2] + protomonbattle_zones[worldId].center.y,
+			position[3] + protomonbattle_zones[worldId].center.z,
 		}
 	else
 		newProtomon.location = {
-			position[1] / 4 + protomonbattle_zones["housing"].center.x,
-			position[2] / 4 + protomonbattle_zones["housing"].center.y,
-			position[3] / 4 + protomonbattle_zones["housing"].center.z,
+			position[1] + protomonbattle_zones["housing"].center.x,
+			position[2] + protomonbattle_zones["housing"].center.y,
+			position[3] + protomonbattle_zones["housing"].center.z,
 		}
 	end
 	newProtomon.viewers = {}
@@ -298,7 +298,7 @@ function ProtomonServer:RadarPulse(playerName, worldId, relativePosition)
 	end
 
 	local nearbyProtomon = {}
-	local nearestHeading = {0, 0, 0} -- 0 element means no heading
+	local nearestHeading = {element = 0, heading = 0, range = 0} -- 0 element means no heading
 	local nearestDist
 	
 	local position
@@ -338,23 +338,20 @@ function ProtomonServer:RadarPulse(playerName, worldId, relativePosition)
 				end
 				local isClose
 				if distance < kHuntDistance then isClose = 1 else isClose = 0 end
-				nearestHeading = {protomonId, heading, isClose}
+				nearestHeading = {element = protomonId, heading = heading, range = isClose}
 			end
 			if distance < kViewDistance and 
 				math.abs(protomon.location[2] - position[2]) < kVerticalDistance and
 				not protomon.viewers[playerName] then
-				table.insert(nearbyProtomon, {
+				table.insert(nearbyProtomon,
 					{
-						protomonId,
-						protomonLevel,
-						zoneId,
-					},
-					{
-						math.floor(4*(protomon.location[1] - position[1]) + 256),
-						math.floor(4*(protomon.location[2] - position[2]) + 128),
-						math.floor(4*(protomon.location[3] - position[3]) + 256),
-					}
-				})
+						protomonId = protomonId,
+						level = protomonLevel,
+						zoneId = zoneId,
+						x = protomon.location[1] - position[1],
+						y = protomon.location[2] - position[2],
+						z = protomon.location[3] - position[3],
+					})
 				protomon.viewers[playerName] = {}
 				MarkForDeath(protomon.viewers, playerName, kViewRefresh)
 			end

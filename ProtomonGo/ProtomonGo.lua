@@ -3,7 +3,7 @@ require "ICCommLib"
 require "ICComm"
 require "Sound"
 
-local kVersion = 2
+local kVersion = 3
 local kProximity = 30
 
 local elementColors = {
@@ -203,7 +203,7 @@ function ProtomonGo:OnLoad()
 
 	self.battleConnectTimer = ApolloTimer.Create(1, true, "ConnectBattle", self)
 	self.protomonServiceConnectTimer = ApolloTimer.Create(1, true, "ConnectProtomonService", self)
-	self.getVersionTimer = ApolloTimer.Create(10, true, "GetVersion", self)
+	self.getVersionTimer = ApolloTimer.Create(5, true, "GetVersion", self)
 end
 
 function ProtomonGo:OnDocLoaded()
@@ -679,27 +679,27 @@ function ProtomonGo:UpdateArrow()
 	end
 	ProtomonService:RemoteCall("ProtomonServer", "RadarPulse",
 		function(elementHeadingRange, nearbyProtomon)
-			if elementHeadingRange[1] == 0 then
+			if elementHeadingRange.element == 0 then
 				self.wndCompass:SetOpacity(0)
 				self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
 			else
-				if elementHeadingRange[3] == 1 then
+				if elementHeadingRange.range == 1 then
 					self.wndCompass:SetOpacity(1)
 				else
 					self.wndCompass:SetOpacity(0.3)
 				end
-				self.wndArrow:SetRotation(elementHeadingRange[2] * 90)
-				self.wndArrow:SetBGColor(elementColors[protomonbattle_protomon[elementHeadingRange[1]].element])
+				self.wndArrow:SetRotation(elementHeadingRange.heading * 90)
+				self.wndArrow:SetBGColor(elementColors[protomonbattle_protomon[elementHeadingRange.element].element])
 				self.arrowTimer = ApolloTimer.Create(5, false, "UpdateArrow", self)
 			end
 			for _, nearby in ipairs(nearbyProtomon) do
 				local newProtomon = {
-					protomonId = nearby[1][1],
-					level = nearby[1][2],
+					protomonId = nearby.protomonId,
+					level = nearby.level,
 					location = {
-						x = (nearby[2][1] - 256) / 4 + callingPosition[1],
-						y = (nearby[2][2] - 128) / 4 + callingPosition[2],
-						z = (nearby[2][3] - 256) / 4 + callingPosition[3],
+						x = nearby.x + callingPosition[1],
+						y = nearby.y + callingPosition[2],
+						z = nearby.z + callingPosition[3],
 					},
 				}
 				newProtomon.pixieId = self.wndView:AddPixie({
@@ -707,17 +707,17 @@ function ProtomonGo:UpdateArrow()
 					flagsText = {
 						DT_RIGHT = true,
 					},
-					strText = tostring(nearby[1][2]),
+					strText = tostring(nearby.level),
 					loc = {
 						fPoints = {0.5,2,0.5,2},
 						nOffsets = {0,0,0,0}}
 					})
 
-				if self.nearbyProtomon[nearby[1][3]] then
-					self.nearbyProtomon[nearby[1][3]]:Die()
+				if self.nearbyProtomon[nearby.zoneId] then
+					self.nearbyProtomon[nearby.zoneId]:Die()
 				end
-				self.nearbyProtomon[nearby[1][3]] = newProtomon
-				self:MarkForDeath(self.nearbyProtomon, nearby[1][3], 75)
+				self.nearbyProtomon[nearby.zoneId] = newProtomon
+				self:MarkForDeath(self.nearbyProtomon, nearby.zoneId, 75)
 			end
 		end,
 		function()
@@ -935,9 +935,9 @@ function ProtomonGo:OnAddSpawn(strCmd, strArg)
 	local positionArg
 	if protomonbattle_zones[zoneHash] then
 		positionArg = {
-			math.floor(4 * (gamePos.x - protomonbattle_zones[zoneHash].center.x)),
-			math.floor(4 * (gamePos.y - protomonbattle_zones[zoneHash].center.y)),
-			math.floor(4 * (gamePos.z - protomonbattle_zones[zoneHash].center.z))
+			gamePos.x - protomonbattle_zones[zoneHash].center.x,
+			gamePos.y - protomonbattle_zones[zoneHash].center.y,
+			gamePos.z - protomonbattle_zones[zoneHash].center.z
 		}
 	else
 		if not HousingLib.GetResidence() then
@@ -945,9 +945,9 @@ function ProtomonGo:OnAddSpawn(strCmd, strArg)
 			return
 		end
 		positionArg = {
-			math.floor(4 * (gamePos.x - protomonbattle_zones["housing"].center.x)),
-			math.floor(4 * (gamePos.y - protomonbattle_zones["housing"].center.y)),
-			math.floor(4 * (gamePos.z - protomonbattle_zones["housing"].center.z))
+			gamePos.x - protomonbattle_zones["housing"].center.x,
+			gamePos.y - protomonbattle_zones["housing"].center.y,
+			gamePos.z - protomonbattle_zones["housing"].center.z
 		}
 	end
 
